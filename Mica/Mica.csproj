@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Mica</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>Assets\mica.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+    <Content Include="Assets\mica.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\mica.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Serilog" Version="4.1.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+  </ItemGroup>
+
+  <Target Name="BuildEditor" BeforeTargets="BeforeBuild"
+          Condition="Exists('$(MSBuildProjectDirectory)\..\web\package.json')">
+    <Exec Command="powershell -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\build\build-editor.ps1&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)\.." />
+  </Target>
+
+  <PropertyGroup>
+    <!-- ReadyToRun：预编译加快启动，只是 AOT 缓存、不影响反射，可在 Release 开启。 -->
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <!-- 把 Windows App SDK 运行时一起打进输出目录：否则目标机器必须预装 Windows App Runtime
+         才能启动（开发机有、同学的纯净系统没有，表现为双击无反应）。仅 Release 开启，
+         Debug 仍走系统装的运行时以加快本地迭代。需配合 build/pack.ps1 的自包含构建参数。 -->
+    <WindowsAppSDKSelfContained Condition="'$(Configuration)' != 'Debug'">true</WindowsAppSDKSelfContained>
+    <!-- 绝不开启裁剪：一旦 PublishTrimmed=true，System.Text.Json 的构建目标会自动关闭
+         「基于反射的序列化」（写进 runtimeconfig，连 dotnet run 都生效），导致
+         SettingsService 读写 settings.json 直接抛 InvalidOperationException、程序启动后崩溃。
+         WinUI 3 + 反射式 JSON 本就不被官方支持裁剪，故全配置统一关掉。 -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+</Project>

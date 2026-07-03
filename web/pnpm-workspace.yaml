@@ -1,0 +1,9 @@
+# pnpm 11 起，overrides 等设置从 package.json 的 "pnpm" 字段迁到本文件。
+# 这里不是真正的多包 workspace，仅用于放依赖 overrides。
+overrides:
+  # 公式 mdast-util-math@3 需 mdast-util-to-markdown>=2.1（含 state.compilePattern），
+  # 而 Milkdown 的 remark-stringify@11 会拉 2.0.0（缺该方法）导致序列化崩溃。
+  # 2.1.x 对 2.0.0 向后兼容，强制统一即可修复。
+  mdast-util-to-markdown: ^2.1.2
+  # katex 统一 0.17，避免 plugin-math 用的 JS 与 main.ts 引入的 CSS 版本错位。
+  katex: ^0.17.0

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Mica.Views.NotebookHomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:Mica.Models"
+    mc:Ignorable="d"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+
+    <!-- 笔记本主页：所有笔记本以可拖拽排序的卡片呈现。单击卡片→详情页；双击→设为活动
+         工作区；右键→上下文菜单。这些「跨页」动作经事件回调交给 MainWindow（见 .cs）。 -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="28,24,28,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="笔记本" FontSize="28" FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+
+            <!-- 图标工具栏（悬停提示）。全选/删除仅在多选开启时出现。 -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                        VerticalAlignment="Center">
+                <Button x:Name="MaintainSelectedButton" Width="36" Height="32" Padding="0"
+                        Background="Transparent" BorderThickness="0"
+                        Visibility="Collapsed" Click="OnMaintainSelectedNotebooks"
+                        ToolTipService.ToolTip="笔记本维护">
+                    <FontIcon Glyph="&#xE90F;" FontSize="15"/>
+                </Button>
+                <Button x:Name="DeleteSelectedButton" Width="36" Height="32" Padding="0"
+                        Background="Transparent" BorderThickness="0"
+                        Visibility="Collapsed" Click="OnDeleteSelectedNotebooks"
+                        ToolTipService.ToolTip="删除所选">
+                    <FontIcon Glyph="&#xE74D;" FontSize="15"/>
+                </Button>
+                <Button x:Name="OpenFolderButton" Width="36" Height="32" Padding="0"
+                        Background="Transparent" BorderThickness="0"
+                        Click="OnOpenFolderClick"
+                        ToolTipService.ToolTip="打开已有文件夹">
+                    <FontIcon Glyph="&#xED25;" FontSize="15"/>
+                </Button>
+                <Button x:Name="NewNotebookButton" Width="36" Height="32" Padding="0"
+                        Background="Transparent" BorderThickness="0"
+                        Click="OnNewNotebookClick"
+                        ToolTipService.ToolTip="新建笔记本">
+                    <FontIcon Glyph="&#xE710;" FontSize="15"/>
+                </Button>
+                <ToggleButton x:Name="MultiSelectToggle" Width="36" Height="32" Padding="0"
+                              Background="Transparent" BorderThickness="0"
+                              Click="OnToggleMultiSelect"
+                              ToolTipService.ToolTip="多选">
+                    <FontIcon Glyph="&#xE8B3;" FontSize="15"/>
+                </ToggleButton>
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" Padding="20,0,20,20">
+            <Grid>
+                <GridView x:Name="NotebookGrid"
+                          ItemsSource="{x:Bind _settings.Notebooks}"
+                          IsItemClickEnabled="False"
+                          SelectionMode="None"
+                          CanReorderItems="True"
+                          AllowDrop="True"
+                          CanDragItems="True"
+                          DragItemsCompleted="NotebookGrid_DragItemsCompleted">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="models:Notebook">
+                            <Grid Width="220" Height="208" Margin="6"
+                                  CornerRadius="8"
+                                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                  BorderThickness="1"
+                                  Tapped="NotebookCard_Tapped"
+                                  DoubleTapped="NotebookCard_DoubleTapped"
+                                  RightTapped="NotebookCard_RightTapped">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="110"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- 封面：设了图片就用图片，否则用首字母强调色占位。 -->
+                                <Border Grid.Row="0" CornerRadius="8,8,0,0"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                        Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}">
+                                    <TextBlock Text="{x:Bind Initial, Mode=OneWay}"
+                                               FontSize="40" FontWeight="SemiBold"
+                                               Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <Border Grid.Row="0" CornerRadius="8,8,0,0"
+                                        Visibility="{x:Bind CoverVisibility, Mode=OneWay}">
+                                    <Image Source="{x:Bind CoverImage, Mode=OneWay}"
+                                           Stretch="UniformToFill"/>
+                                </Border>
+
+                                <StackPanel Grid.Row="1" Padding="12,8" Spacing="3">
+                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                               FontWeight="SemiBold" FontSize="14"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTipService.ToolTip="{x:Bind Path}"/>
+                                    <TextBlock Text="{x:Bind ShortDescription, Mode=OneWay}"
+                                               FontSize="12" Height="32"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <TextBlock Text="{x:Bind CountText, Mode=OneWay}"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+
+                <!-- 空状态 -->
+                <StackPanel x:Name="NotebookEmptyState"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Spacing="12" Margin="0,80,0,0" Visibility="Collapsed">
+                    <FontIcon Glyph="&#xE736;" FontSize="48"
+                              Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    <TextBlock Text="还没有笔记本" FontSize="16"
+                               HorizontalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Button Content="新建笔记本" Click="OnNewNotebookClick"
+                            HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Mica.Views.NotebookDetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:Mica.Models"
+    mc:Ignorable="d"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+
+    <!-- 笔记本详情页：封面 + 名称 + 创建时间 + 简介 + 统计，附带 编辑/删除/进入工作区 操作。
+         x:Bind 的封面绑定解析到 .cs 里的 _detailNotebook 字段（Show 时 Bindings.Update 刷新）。 -->
+    <ScrollViewer Padding="36,28,36,28" HorizontalScrollMode="Disabled">
+        <!-- 居中、限定最大宽度，避免在宽窗口里拉满。 -->
+        <StackPanel Spacing="22" MaxWidth="760" HorizontalAlignment="Center">
+
+            <!-- 顶部：固定方形封面（左）+ 信息列（右）。 -->
+            <Grid ColumnSpacing="24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 封面：图片（裁剪填充）或首字母强调色占位；拉伸与信息列同高、底对齐，
+                     MinHeight 给短列兜底；Border 裁到圆角。 -->
+                <Grid Grid.Column="0" Width="280" MinHeight="240" VerticalAlignment="Stretch">
+                    <Border CornerRadius="12"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind _detailNotebook.PlaceholderVisibility, Mode=OneWay}">
+                        <TextBlock x:Name="DetailInitial"
+                                   FontSize="84" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <Border CornerRadius="12"
+                            Visibility="{x:Bind _detailNotebook.CoverVisibility, Mode=OneWay}">
+                        <Image Source="{x:Bind _detailNotebook.CoverImage, Mode=OneWay}"
+                               Stretch="UniformToFill"/>
+                    </Border>
+                </Grid>
+
+                <!-- 信息列：名称+日期、操作、每行一条统计。 -->
+                <StackPanel Grid.Column="1" Spacing="14" VerticalAlignment="Top">
+                    <StackPanel Spacing="3">
+                        <TextBlock x:Name="DetailName" FontSize="24" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2"/>
+                        <TextBlock x:Name="DetailCreated" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="OnDetailOpenWorkspace" Style="{StaticResource AccentButtonStyle}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE8A7;" FontSize="14"/>
+                                <TextBlock Text="进入笔记本"/>
+                            </StackPanel>
+                        </Button>
+                        <Button ToolTipService.ToolTip="更多操作">
+                            <FontIcon Glyph="&#xE712;" FontSize="14"/>
+                            <Button.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="编辑信息" Click="OnDetailEdit"/>
+                                    <MenuFlyoutItem Text="移除封面" Click="OnDetailRemoveCover"/>
+                                    <MenuFlyoutSeparator/>
+                                    <MenuFlyoutItem Text="笔记本维护" Click="OnDetailMaintenance"/>
+                                    <MenuFlyoutItem Text="在资源管理器中显示" Click="OnDetailReveal"/>
+                                    <MenuFlyoutSeparator/>
+                                    <MenuFlyoutItem Text="删除" Click="OnDetailDelete"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 统计行：每行一条（笔记 / 文件夹 / 上次打开）。 -->
+                    <Border CornerRadius="6" Padding="12,8"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <Grid>
+                            <TextBlock Text="笔记数量" FontSize="13" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="DetailNoteCount" FontSize="18" FontWeight="SemiBold"
+                                       HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+                    <Border CornerRadius="6" Padding="12,8"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <Grid>
+                            <TextBlock Text="文件夹数量" FontSize="13" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="DetailFolderCount" FontSize="18" FontWeight="SemiBold"
+                                       HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+                    <Border CornerRadius="6" Padding="12,8"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <Grid>
+                            <TextBlock Text="上次打开" FontSize="13" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="DetailLastOpened" FontSize="18" FontWeight="SemiBold"
+                                       HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- 简介：跨两列下方整行展开。 -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="简介" FontSize="15" FontWeight="SemiBold"/>
+                <Border CornerRadius="6" Padding="14"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <TextBlock x:Name="DetailDescription"
+                               TextWrapping="Wrap" FontSize="14"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Border>
+            </StackPanel>
+
+            <!-- 路径 -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE8B7;" FontSize="12"
+                          Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                          VerticalAlignment="Center"/>
+                <TextBlock x:Name="DetailPath" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           TextWrapping="Wrap" VerticalAlignment="Center"/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,1479 @@
+:root {
+  --mica-fg: #1f1f1f;
+  --mica-fg-muted: #5d5d5d;
+  --mica-accent: #0067c0;
+  --mica-link: var(--mica-accent);
+  --mica-code-bg: rgba(120, 120, 120, 0.12);
+  --mica-inlinecode-bg: #ffffff; /* 行内代码底色：比书写区(--mica-surface #f9f9f9)更白、更醒目 */
+  --mica-blockquote-border: var(--mica-accent);
+  --mica-font-body: 'Segoe UI Variable', system-ui, sans-serif;
+  --mica-font-mono: 'Cascadia Code', Consolas, monospace;
+  /* Editor body size + writing-canvas width. Overridden at runtime by the host
+     (editor.config IPC) from the settings page; these are the defaults. */
+  --mica-font-size: 15px;
+  --mica-editor-width: 800px;
+  /* The writing canvas. This must be applied via the stylesheet body rule —
+     do NOT put an inline background on <body> in index.html, since inline
+     styles override this variable and the editor will fall back to the
+     transparent WebView (Mica bleeds through and tints it gray). Solid color
+     gives a clean Notepad-like surface; switch to an rgba(...) with alpha < 1
+     if you want some Mica to show through. */
+
+  --mica-surface: #ffffff; /* 书写区底色：纯白（对标 Typora，原 #f9f9f9 偏灰被吐槽「灰蒙蒙」）*/
+
+  /* 图册容器底色：取 Fluent Design 云母(Mica)基色 ≈ 软件窗口色，让图册像「浮在白页上的窗口材质卡片」。
+     真实 Mica 随壁纸/强调色变，web 无法采样，故用 Fluent 标准基色近似（亮 #f3f3f3 / 暗见 body.dark）。
+     想精确对齐窗口色可由宿主 theme.update 把实际窗口背景色推过来覆盖此变量。 */
+  --mica-image-group-bg: #eef4f9;
+
+  /* 表格配色（亮色）——抽成变量方便随时调。深色值在 body.dark 里另设，勿在此固定死。
+     · --mica-table-border：所有表格线（外框 + 单元格内框 + 表头下线），对标 Typora 的 #e2e2e2
+     · --mica-table-shade ：表头行 + 斑马纹深色行的底色（白行=透明=露出白底，故只需定义「深色行」）*/
+  --mica-table-border: #ebebeb;
+  --mica-table-shade: #fcfcfc;
+  /* 彩虹表专用边框色：亮色取偏黑（线条精炼干净），暗色在 body.dark 里另设偏白（更醒目）。 */
+  --mica-table-rainbow-border: rgba(0, 0, 0, 0.4);
+
+  /* ===== 共享亚克力浮层系统（所有「瞬态浮层」复用：表格浮条 / 图片浮条 / 将来其它）=====
+     ★想整体调浮层质感（白/灰、模糊、噪点、边、影、圆角、内部交互态）只改这一组；
+     做多套主题时各主题覆盖这组即可（亮色默认在此，暗色在 body.dark/.mica-table-overlay.dark 块）。
+     关键认知（Gemini 提示 + 用户实测）：WinUI 原生亚克力有「亮度保护」——白底上会折射成淡灰；
+     CSS 做不到该混合，故底色**不能用纯白 255**，否则白底上算出来还是 255「白死」失去边界。
+     这里底取偏灰白(248) + 边线加重(0.08)，让浮层在纯白书写区上仍有边界与质感。 */
+  /* 多层叠加（不加真 Div，用元素自身 + ::before 噪点 + ::after 顶部 sheen + inset 内高光）：
+     通透感的关键不是堆纯色层，而是「低 tint alpha + 强 blur/saturate + 顶部内高光」三件套。
+     CSS 做不到 WinUI 的 Luminosity 合成，故再多堆纯色 RGBA 收益递减，这三样性价比最高。 */
+  --mica-acrylic-bg: rgba(250, 250, 250, 0.62);    /* 浮层底：偏灰白 + 更透（alpha 降到 0.62 让背板透上来=更通透） */
+  --mica-acrylic-blur: blur(40px) saturate(1.8);   /* 背板磨砂：强模糊 + 加大饱和（背后颜色更活，亚克力标志性） */
+  --mica-acrylic-border: rgba(0, 0, 0, 0.08);      /* 1px 细边（白底上不消失） */
+  --mica-acrylic-noise: 0.04;                       /* 噪点层透明度（磨砂颗粒感；0 = 关） */
+  --mica-acrylic-radius: 8px;                       /* 外圆角（Fluent 同心：内部交互项 4~5px） */
+  --mica-acrylic-sheen: rgba(255, 255, 255, 0.22);  /* 顶部 sheen 渐变起色（玻璃高光，::after 用） */
+  --mica-acrylic-shadow:                            /* 内高光(玻璃边吃光) + 近距环境光 + 远距方向光 */
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04),
+    0 2px 6px rgba(0, 0, 0, 0.10),
+    0 14px 36px rgba(0, 0, 0, 0.18);
+  /* 浮层内交互态（SubtleFill 系：悬浮 / 按下 / 选中底；细线分格 / 字段 / 开关 / 滑块） */
+  --mica-acrylic-hover: rgba(0, 0, 0, 0.05);
+  --mica-acrylic-active: rgba(0, 0, 0, 0.085);
+  --mica-acrylic-line: rgba(0, 0, 0, 0.10);        /* 分段控件细边 / 分隔线 / 字段边 */
+  --mica-acrylic-field-bg: rgba(255, 255, 255, 0.55);
+  --mica-acrylic-stroke: rgba(0, 0, 0, 0.45);      /* 开关描边 / 滑块拇指（关态） */
+  --mica-acrylic-track: rgba(0, 0, 0, 0.22);       /* 滑块未滑过轨道 */
+  --mica-acrylic-thumb-gap: #f6f6f4;               /* 滑块拇指缺口环色（≈底色去透明） */
+
+  /* 代码块语法高亮配色（亮色）。CodeMirror 的 token 颜色全部引用这批变量，
+     切到暗色时由 body.dark 覆盖、经 CSS 级联自动生效（详见 editor/codeSetup.ts）。
+     想换配色直接改这里即可。亮色取 GitHub Light 风格。 */
+  --cm-fg: #1f2328;
+  --cm-keyword: #cf222e;
+  --cm-string: #0a3069;
+  --cm-comment: #6e7781;
+  --cm-number: #0550ae;
+  --cm-function: #8250df;
+  --cm-type: #953800;
+  --cm-property: #0550ae;
+  --cm-tag: #116329;
+  --cm-def: #953800;
+  --cm-meta: #6e7781;
+  --cm-punct: #57606a;
+  --cm-invalid: #cf222e;
+  /* 代码块卡片底色（与行内代码 --mica-code-bg 区分，单独控制）。亮色用 GitHub 那种很浅的灰，
+     避免之前直接套 --mica-code-bg 显得偏深。 */
+  --mica-codeblock-bg: #f6f8fa;
+}
+
+/* Dark theme. The host pushes mode:'dark' via the theme.update IPC, which adds
+   the .dark class to <body>; these overrides cascade to everything inside it.
+   Keeping the palette here (rather than sending colors over IPC) means there's
+   one source of truth for editor colors. */
+/* 暗色变量定义在 body 上；表格浮层在 body 外（逃离 zoom），故同一组变量也定义到 .mica-table-overlay.dark 上，
+   其 .dark 类由 main.ts theme.update 同步（见 tableToolbar.setTableOverlayDark）。 */
+body.dark,
+.mica-table-overlay.dark {
+  --mica-fg: #e6e6e6;
+  --mica-fg-muted: #a0a0a0;
+  /* 注意：深色不要在这里固定 --mica-accent！宿主 theme.update 会把真实 Windows 强调色
+     （深色取 AccentLight1）写到 :root(html) 上，而 body.dark 写在 body 上、对 body 内元素
+     更近会盖掉宿主值 → 行内代码等就用了固定色而非系统色。:root 的默认值已够作无宿主时的兜底。 */
+  --mica-code-bg: rgba(255, 255, 255, 0.08);
+  --mica-inlinecode-bg: rgba(255, 255, 255, 0.10); /* 暗色：比书写区略亮 */
+  --mica-surface: #202020;
+  --mica-image-group-bg: ##1c2126; /* 暗色云母基色：比书写区(#202020)略亮，像窗口材质卡片 */
+  /* 表格配色（深色）：用中性半透明，叠在深底上自然——别套亮色那套固定 hex */
+  --mica-table-border: rgba(255, 255, 255, 0.14);
+  --mica-table-shade: rgba(255, 255, 255, 0.05);
+  /* 彩虹表边框（暗色）：偏白，叠在深底上更显眼。 */
+  --mica-table-rainbow-border: rgba(255, 255, 255, 0.4);
+
+  /* 共享亚克力浮层（暗色覆盖；亮色默认见 :root）。底取中性暗灰、交互态转白基。 */
+  --mica-acrylic-bg: rgba(40, 40, 40, 0.6);
+  --mica-acrylic-border: rgba(255, 255, 255, 0.09);
+  --mica-acrylic-noise: 0.05;
+  --mica-acrylic-sheen: rgba(255, 255, 255, 0.05);
+  --mica-acrylic-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 0.5px rgba(0, 0, 0, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 14px 36px rgba(0, 0, 0, 0.5);
+  --mica-acrylic-hover: rgba(255, 255, 255, 0.06);
+  --mica-acrylic-active: rgba(255, 255, 255, 0.10);
+  --mica-acrylic-line: rgba(255, 255, 255, 0.12);
+  --mica-acrylic-field-bg: rgba(255, 255, 255, 0.05);
+  --mica-acrylic-stroke: rgba(255, 255, 255, 0.6);
+  --mica-acrylic-track: rgba(255, 255, 255, 0.26);
+  --mica-acrylic-thumb-gap: #2e2e2e;
+
+  /* 代码块语法高亮配色（暗色，One Dark 风格） */
+  --cm-fg: #abb2bf;
+  --cm-keyword: #c678dd;
+  --cm-string: #98c379;
+  --cm-comment: #7f848e;
+  --cm-number: #d19a66;
+  --cm-function: #61afef;
+  --cm-type: #e5c07b;
+  --cm-property: #e06c75;
+  --cm-tag: #e06c75;
+  --cm-def: #e5c07b;
+  --cm-meta: #7f848e;
+  --cm-punct: #abb2bf;
+  --cm-invalid: #e06c75;
+  /* 暗色用 One Dark 的背景，与上面那套语法配色同源、更协调 */
+  --mica-codeblock-bg: #282c34;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  height: 100%;
+}
+
+/* Neutral, native-feeling text selection. Defining ::selection explicitly
+   keeps the same color whether the WebView has focus or not — otherwise
+   Chromium swaps to its washed-out gray "inactive" highlight when focus
+   moves to the host menu bar, making it look like a web page. */
+::selection {
+  background-color: rgba(120, 120, 120, 0.3);
+  color: inherit;
+}
+
+/* body 不再留横向 padding：所有横向留白都放进「可编辑元素 / 源码 textarea」内部
+   （见下方 .milkdown .editor 与 .mica-source 的 padding）。这样把鼠标拖到文本左侧
+   空白时，命中测试仍落在当前行行首，而不是窜到上一行（详见 .milkdown .editor 注释）。 */
+body {
+  background: var(--mica-surface);
+}
+
+/* Raw-markdown source view (toggled from 视图 → 源代码模式).
+   现在是 CodeMirror 6 容器（行号 + 语法高亮，见 web/src/editor/sourceMode.ts）。
+   布局/配色全在 sourceMode.ts 的 EditorView.theme 里（文本列同宽居中、行号 gutter 在最左）；
+   这里只做容器：与 WYSIWYG 等高、不自带滚动（CM auto-height，由页面统一滚 → 无双滚动条）。 */
+.mica-source {
+  display: block;
+  width: 100%;
+  margin: 0;
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.milkdown {
+  background: transparent !important;
+  color: var(--mica-fg);
+  font-family: var(--mica-font-body);
+  font-size: var(--mica-font-size);
+  line-height: 1.7;
+  /* 不再在这里居中限宽：让 .milkdown 与内部可编辑元素铺满整宽，
+     文本列改由 .editor 的 padding 居中（见下）。 */
+}
+
+/* 关键：横向留白全部放进「可编辑元素」内部，用 padding 把文本列居中（默认 800px，
+   由 --mica-editor-width 控制）。
+   根因——若可编辑元素只占居中的窄列（旧写法 .milkdown { max-width; margin:0 auto }），
+   文本左侧的空白就落在可编辑元素「之外」。拖动鼠标进入该死区时，Chromium 对元素外的
+   点用粗粒度命中测试，会返回「块与块之间的边界」而非当前行行首，导致选区窜到上一行。
+   把留白移进元素内部后，左侧空白处的命中测试稳定落在当前行行首，问题消失。
+   max(48px, …) 保证窗口很窄时仍有 48px 边距、不为负。 */
+.milkdown .editor {
+  outline: none;
+  /* 填满整个 WebView 视口高度（与源代码模式一致，见 .mica-source），
+     既保证两模式等高、又让正文下方空白处点击也能聚焦编辑器。 */
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px max(48px, calc((100% - var(--mica-editor-width)) / 2));
+  /* ProseMirror 要求可编辑元素的 white-space 为 pre/pre-wrap（否则控制台告警、
+     且多空格/行尾空格渲染异常）。等价于官方 prosemirror.css 的设定。 */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* 首行缩进（设置项 EditorFirstLineIndent → editor.config 推 firstLineIndent → body 挂类）。
+   只缩进顶层段落（`.ProseMirror > p`），不动列表/引用/表格里的段落，避免缩进叠加错乱。 */
+body.first-line-indent .milkdown .ProseMirror > p { text-indent: 2em; }
+/* 注：图片已是块级节点、不在 `> p` 里，故首行缩进天然不影响它，无需再排除。 */
+/* 首行缩进模式下，顶层列表整体右移一点，与缩进的段落协调（对标 Typora；默认列表项目符号落在
+   padding 区、比 2em 首行缩进还靠左，看着「往前突出」）。只移顶层列表，嵌套列表保持相对缩进。
+   ★想调列表缩进量改这里的 margin-left（值越大越往右；不用太多）。 */
+body.first-line-indent .milkdown .ProseMirror > ul,
+body.first-line-indent .milkdown .ProseMirror > ol { margin-left: 1em; }
+
+/* Headings */
+.milkdown h1, .milkdown h2, .milkdown h3,
+.milkdown h4, .milkdown h5, .milkdown h6 {
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.milkdown h1 { font-size: 2em; }
+.milkdown h2 { font-size: 1.6em; }
+.milkdown h3 { font-size: 1.3em; }
+.milkdown h4 { font-size: 1.15em; }
+.milkdown h5 { font-size: 1.05em; }
+/* h6 之前显式设了暗淡色 var(--mica-fg-muted) 显得发灰，已改回正常文字色，
+   与其它标题一致（只是字号最小）。想让 h6 重新变淡就把 color 那行加回来。 */
+.milkdown h6 { font-size: 1em; }
+
+/* 标题行提示（对标 Typora）：光标在某标题行时，由 headingHintPlugin 给该标题挂
+   data-mica-hlevel="Hn"，这里在左侧 padding 区用淡灰小标签标出（H1~H6）。
+   ★关键：font-size/left 都用 rem（不随标题字号变）——否则 H1(2em) 的标签会被放大、且 left 太远被裁。
+   ★想调：left（越小越靠近标题）/ top（越大越靠下）/ font-size / opacity（颜色深浅）。 */
+.milkdown [data-mica-hlevel] { position: relative; }
+.milkdown [data-mica-hlevel]::before {
+  content: attr(data-mica-hlevel);
+  position: absolute;
+  left: -2.3rem;        /* 靠近标题（固定单位，不随 Hn 字号放大） */
+  top: 0.55em;          /* 靠下一点点（相对标题，视觉落在标题中部） */
+  font-size: 0.62rem;   /* 固定小字号：H1~H6 标签一样大 */
+  line-height: 1.3;
+  font-weight: 600;
+  padding: 0.05em 0.32em;
+  color: var(--mica-fg-muted);
+  opacity: 0.65;        /* 颜色淡一些 */
+  background: color-mix(in srgb, var(--mica-fg-muted) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mica-fg-muted) 28%, transparent);
+  border-radius: 5px;   /* 圆角矩形框 */
+  font-family: var(--mica-font-mono);
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Links */
+.milkdown a {
+  color: var(--mica-link);
+  text-decoration: none;
+}
+
+.milkdown a:hover {
+  text-decoration: underline;
+}
+
+/* Code blocks */
+.milkdown pre {
+  background: var(--mica-code-bg);
+  border-radius: 6px;
+  padding: 16px;
+  font-family: var(--mica-font-mono);
+  font-size: 13px;
+  overflow-x: auto;
+}
+
+.milkdown code {
+  font-family: var(--mica-font-mono);
+  font-size: 0.9em;
+}
+
+/* 行内代码是「原子节点」（inlineEmbedView 渲染），chip 样式见下方「行内嵌入」区。 */
+
+/* Blockquotes */
+.milkdown blockquote {
+  border-left: 3px solid var(--mica-blockquote-border);
+  margin-left: 0;
+  padding-left: 16px;
+  color: var(--mica-fg-muted);
+}
+
+/* ===== 表格（HTML 表格节点，见 htmlTable.ts）=====
+   表格直接渲染成 <table>（不再有 prosemirror-tables 的 .tableWrapper，本轮未启用列宽拖拽）。
+   每表样式由节点属性派生：toDOM 把「整表对齐(margin)/圆角(border-radius)/线宽(--mica-table-border-width)」
+   写成内联 style（实时生效），故下面只给「默认值兜底」，内联 style 会覆盖。
+   - 圆角靠 border-collapse:separate + overflow:hidden 裁切（collapse 下 border-radius 不生效）；
+   - width:auto + max-width:100% 让窄表能按 margin 左/中/右对齐（width:100% 时 margin:auto 无效）。
+   配色用中性 rgba，明暗两套主题自动适配。线宽用 --mica-table-border-width（默认 1px）。 */
+/* 横向滚动容器（toDOM 给每张表外包一层 .mica-table-scroll）：宽表只在本层内横向滚动，
+   不再撑出整个文档的横向滚动条（对标 Typora）。窄表/占满表不超宽时无滚动条。 */
+.milkdown .mica-table-scroll { max-width: 100%; overflow-x: auto; }
+/* 容器在的时候竖直外边距移到容器上，避免 overflow 容器内再留 margin 让滚动条离表格太远。 */
+.milkdown .mica-table-scroll > table { margin-top: 0; margin-bottom: 0; }
+.milkdown .mica-table-scroll { margin: 0.9em 0; }
+
+.milkdown table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: auto;
+  max-width: 100%;
+  margin: 0.9em 0;
+  font-size: 0.95em;
+  /* 外框四条边都画（圆角才能四个角都圆——只画上/左会让另外三角缺圆角）；右/下边缘的「单元格内框」
+     与外框重叠造成的双线，靠下面 .mica-edge-right/.mica-edge-bottom 去掉，**不再用 :last-child**。 */
+  border: var(--mica-table-border-width, 1px) solid var(--mica-table-border);
+  border-radius: 8px; /* 无内联 radius 时的默认圆角（有内联/data-radius 的表格由 toDOM 覆盖） */
+  overflow: hidden;
+}
+.milkdown th, .milkdown td {
+  position: relative;
+  min-width: 2.5em;
+  padding: 4px 11px;
+  text-align: left;
+  vertical-align: top;
+  border-right: var(--mica-table-border-width, 1px) solid var(--mica-table-border);
+  border-bottom: var(--mica-table-border-width, 1px) solid var(--mica-table-border);
+}
+/* 去掉「最右列/最末行」单元格的右/下内框线，避免与外框叠成双倍宽。
+   ★关键：哪些格在最右/最末由 JS 按 TableMap 算（tableEdgeBordersPlugin，见 htmlTable.ts）打上
+     .mica-edge-right/.mica-edge-bottom，**不用 :last-child**——合并单元格会打乱 :last-child（被上方
+     rowspan 盖住的行里、实际不在最右的格会变成该行最后一个 <td>，:last-child 会误删它右边的竖线 →
+     合并格旁「时有时无」缺一条线，就是之前那个诡异 bug）。按 TableMap 的 cellRect.right===width /
+     bottom===height 判定才是真·边缘，合并/拆分都不丢线。 */
+.milkdown th.mica-edge-right, .milkdown td.mica-edge-right { border-right: none; }
+.milkdown th.mica-edge-bottom, .milkdown td.mica-edge-bottom { border-bottom: none; }
+/* 单元格内的段落不要带上下外边距，否则行高被撑得很高（表格「太高」的根因） */
+.milkdown th > *, .milkdown td > * { margin-top: 0; margin-bottom: 0; }
+/* 纵向合并（rowspan>1）的单元格内容垂直居中——否则跨多行时文字贴在顶部（如多级表头左侧的合并列）。
+   prosemirror-tables 仅在 rowspan!=1 时才输出该属性，故 [rowspan] 精确命中合并单元格。 */
+.milkdown th[rowspan], .milkdown td[rowspan] { vertical-align: middle; }
+.milkdown th {
+  background: var(--mica-table-shade);
+  font-weight: 600;
+  border-bottom: var(--mica-table-border-width, 1px) solid var(--mica-table-border);
+}
+/* 不做 hover 变灰：会让悬浮行（含被合并行）整行变色、干扰选区，且 Typora 也没有此效果。 */
+
+/* ===== 表格预设（preset = table 的 mica-table-<preset> class）=====
+   plain（默认）即上面的样式。下列预设都用 --mica-fg/中性 rgba 随明暗。 */
+
+/* 三线表（3line）：科研论文经典——仅顶/底粗线 + 表头下细线，无竖线无内框、直角。表头=首行的 th/td。
+   关键：用 border-collapse:collapse + 直角，让顶线/底线/表头下线都「贯穿」整行连续（separate 会留间隙、
+   圆角会让线显得断/弯）。overflow 设 visible 因无需圆角裁切。 */
+.milkdown table.mica-table-3line {
+  border: none;
+  border-collapse: collapse;
+  border-radius: 0;
+  overflow: visible;
+  border-top: 2px solid var(--mica-fg);
+  border-bottom: 2px solid var(--mica-fg);
+}
+.milkdown table.mica-table-3line th,
+.milkdown table.mica-table-3line td { border: none; background: none; }
+
+/* 三线表多级表头判定（靠 :has，WebView2=Chromium 支持）：
+   ·「组表头行」= 其后还跟着一行表头的行（tr:has(+ tr th)），如示例第 1 行 col1/col2/col3。
+   ·「表头末行」= 含 th 但其后不再跟表头行的行（tr:has(th):not(:has(+ tr th))），如第 2 行 val/testA…，
+     也兼容「只有单行表头」的普通情况（首行即末行）。 */
+
+/* 表头末行底部：贯穿全宽的细线（分隔表头与正文）。即三线表的「中线」，必须连续到最右。 */
+.milkdown table.mica-table-3line tr:has(th):not(:has(+ tr th)) > * {
+  border-bottom: 1px solid var(--mica-fg);
+}
+/* 组表头行里「纵向合并」的单元格（如左侧 A/B，rowspan 跨到表头底部）：给整段 border-bottom，
+   把贯穿中线在这些列下的缺口补齐（否则中线只在叶子表头那几列下、A/B 列下断开 → 「没贯穿到最右」）。 */
+.milkdown table.mica-table-3line tr:has(+ tr th) > [rowspan] {
+  border-bottom: 1px solid var(--mica-fg);
+}
+/* 组表头行里「带子表头」的单元格（col1/col2/col3，无 rowspan）：行底画一条**内缩**的组分隔线，
+   只贯穿自己那几列、左右各缩 6px，使相邻组之间留缝、不连成一条（对标论文多级表头）。 */
+.milkdown table.mica-table-3line tr:has(+ tr th) > th:not([rowspan]),
+.milkdown table.mica-table-3line tr:has(+ tr th) > td:not([rowspan]) {
+  position: relative;
+}
+.milkdown table.mica-table-3line tr:has(+ tr th) > th:not([rowspan])::after,
+.milkdown table.mica-table-3line tr:has(+ tr th) > td:not([rowspan])::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 0;
+  border-bottom: 1px solid var(--mica-fg);
+}
+
+/* 全框线（grid）：把所有表格线换成更深的中性灰、更清晰。结构沿用基础模型（外框四边 + 单元格右/下内框，
+   边缘双线由 .mica-edge-* 去掉），故只需统一改色，不再用 :last-child 去边框（那会误删合并格旁的线、见上）。 */
+.milkdown table.mica-table-grid { border-color: rgba(128, 128, 128, 0.45); }
+.milkdown table.mica-table-grid th,
+.milkdown table.mica-table-grid td {
+  border-right-color: rgba(128, 128, 128, 0.45);
+  border-bottom-color: rgba(128, 128, 128, 0.45);
+}
+
+/* 无框线（borderless）：去掉所有边框，仅留表头浅底色。 */
+.milkdown table.mica-table-borderless,
+.milkdown table.mica-table-borderless th,
+.milkdown table.mica-table-borderless td { border: none; }
+.milkdown table.mica-table-borderless th { background: var(--mica-table-shade); }
+
+/* 斑马纹（zebra）：正文行交替底色。表头是 tbody 第 1 行(th，自带 shade 底)；数据行从第 2 行(tr2)起。
+   要让「第 1 行数据(tr2)留白、和表头区分」，须给 tr3/tr5…(nth-child(odd)，跳过无 td 的表头 tr1)上色，
+   即数据行序列呈：白、深、白、深…。用 odd 而非 even 正是修「表头与第一行同色」。 */
+.milkdown table.mica-table-zebra tbody tr:nth-child(odd) td { background: var(--mica-table-shade); }
+
+/* 彩虹（rainbow）表头配色 */
+.milkdown table.mica-table-rainbow th {
+  background: hsla(255, 85%, 65%, 0.1); /* 表头使用高纯度紫色微调，适配暗色/亮色 */
+}
+
+/* 彩虹表的线统一用 --mica-table-rainbow-border 变量：亮色偏黑（线条精炼），暗色偏白（更醒目），
+   两套值见 :root 与 body.dark。想各自微调就改那两处变量即可。
+   注意写成 border-color（不是 border-top-color 等）能一次盖掉「table 的上/左 + 单元格的右/下」全部线。 */
+.milkdown table.mica-table-rainbow,
+.milkdown table.mica-table-rainbow th,
+.milkdown table.mica-table-rainbow td {
+  border-color: var(--mica-table-rainbow-border);
+}
+
+/* 12 色 HSL 平滑循环（保持高饱和度 95% 与均衡亮度 65%，不透明度 0.14） */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 1) td { background: hsla(0, 95%, 65%, 0.1); }   /* 珊瑚红 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 2) td { background: hsla(30, 95%, 65%, 0.1); }  /* 温暖橙 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 3) td { background: hsla(60, 95%, 60%, 0.1); }  /* 柠檬黄 (微调亮度防泛白) */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 4) td { background: hsla(90, 95%, 62%, 0.1); }  /* 嫩草绿 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 5) td { background: hsla(120, 95%, 65%, 0.1); } /* Mint绿 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 6) td { background: hsla(150, 95%, 65%, 0.1); } /* 青绿 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 7) td { background: hsla(180, 95%, 65%, 0.1); } /* 浅青 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 8) td { background: hsla(210, 95%, 65%, 0.1); } /* 天空蓝 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 9) td { background: hsla(240, 95%, 68%, 0.1); } /* 皇家蓝 (微调亮度防过暗) */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 10) td { background: hsla(270, 95%, 68%, 0.1); }/* 罗兰紫 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 11) td { background: hsla(300, 95%, 65%, 0.1); }/* 桃红 */
+.milkdown table.mica-table-rainbow tbody tr:nth-child(12n + 12) td { background: hsla(330, 95%, 65%, 0.1); }/* 玫瑰粉 */
+
+/* 选中单元格（拖选/整列整行选）：用 ::after 叠加层画蓝色高亮，保证盖在 hover/斑马等底色之上
+   （修「鼠标停在选中行时灰色 hover 覆盖了蓝色选区」）。th/td 已 position:relative。 */
+.milkdown .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(80, 150, 255, 0.22);
+  pointer-events: none;
+  z-index: 2;
+}
+/* 列宽拖拽手柄：悬停在列右缘时显示一条蓝色竖线 */
+.milkdown .column-resize-handle {
+  position: absolute;
+  right: -1px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--mica-accent, var(--mica-link));
+  pointer-events: none;
+}
+.milkdown .resize-cursor { cursor: col-resize; }
+/* 表格右键菜单改用 WinUI 原生 MenuFlyout（宿主侧），web 端不再画浮层（见 tableSetup.ts）。 */
+
+/* ===== 表格浮动工具条（见 editor/tableToolbar.ts）=====
+   悬停某张表时在其上方浮出，管「整表的事」：对齐/宽度/行列数/预设/圆角线宽/删表。
+   行/列/单元格的增删合并拆分仍在右键。配色用现成主题变量 + 中性 rgba，自动明暗。 */
+.mica-wysiwyg { position: relative; } /* 浮动工具条用绝对定位锚到它，整页滚动时随内容一起移动 */
+
+/* 静态布局：工具条是「行容器（.mtb-row）的纵向 flex」。宽度=最宽那行（column flex 的固有 max-content 天然如此，
+   不需 JS 量宽、也没有 flex-wrap 时 max-content 撑成单行宽的 bug）。切 1/2/3 档只是 JS 把控件搬进不同数量的行。 */
+/* 非缩放浮层：承载浮动工具条 + 排序把手。挂在 documentElement 上（body 外）以逃离 body 的 CSS zoom——
+   见 tableToolbar.ts 顶部架构说明。position:fixed 铺满视口、本层不挡事件，只有里面的工具条/把手可点。 */
+.mica-table-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* ===== 共享亚克力浮层（表格浮条 / 图片浮条 / 将来其它浮条统一用 .mica-toolbar 这一套）=====
+   `.mica-toolbar` = 唯一的浮条组件类（两个浮条都挂它，子元素全用 .mtb-*，只有这一份样式）。
+   `.mica-acrylic` = 纯「表面材质」基类，需要亚克力但非浮条的元素可单独用。
+   ★想整体调浮层质感（白/灰、模糊、噪点、sheen、边、影、圆角、字号、交互态）只改这里 + :root 的 --mica-acrylic-*。
+   多层叠加：元素自身(tint+背板模糊+inset 内高光) + ::before(噪点) + ::after(顶部 sheen 渐变)，不加真 Div。 */
+.mica-acrylic,
+.mica-toolbar {
+  background-color: var(--mica-acrylic-bg);
+  -webkit-backdrop-filter: var(--mica-acrylic-blur);
+  backdrop-filter: var(--mica-acrylic-blur);   /* 强背板模糊 + 加饱和 → 通透亚克力 */
+  border: 1px solid var(--mica-acrylic-border);
+  border-radius: var(--mica-acrylic-radius);
+  box-shadow: var(--mica-acrylic-shadow);      /* inset 内高光 + 双层柔影 */
+}
+/* 第 2 层：极细微杂色（磨砂颗粒）——feTurbulence 灰噪点、overlay 混合、极低透明。 */
+.mica-acrylic::before,
+.mica-toolbar::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: var(--mica-acrylic-noise); mix-blend-mode: overlay;
+}
+/* 第 3 层：顶部 sheen 渐变（玻璃高光从上往下淡出，增「通透」纵深感）。 */
+.mica-acrylic::after,
+.mica-toolbar::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: linear-gradient(180deg, var(--mica-acrylic-sheen), transparent 55%);
+}
+.mica-acrylic > *,
+.mica-toolbar > * { position: relative; z-index: 1; } /* 内容压在噪点/sheen 之上 */
+
+/* 浮条容器：纵向 flex（行容器 .mtb-row 的堆叠）。宽度=最宽那行（column flex 的 max-content）。
+   字号/控件尺寸对标 WinUI3 右键菜单（14px 文字、18px 图标、32px 控件高）。菜单项多时由各浮条切多行。 */
+.mica-toolbar {
+  position: absolute;
+  z-index: 30;
+  pointer-events: auto; /* 浮层 pointer-events:none，浮条须显式放行才能点 */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch; /* 每行拉到最宽行宽，便于行内 justify-content 居中 */
+  gap: 6px;             /* 行间距 */
+  width: max-content;   /* = 最宽那行 */
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font-family: var(--mica-font-body);
+  font-size: 14px;      /* 对标 WinUI3 菜单文字 */
+  line-height: 1.35;    /* ≥1.2 不裁中文 */
+  color: var(--mica-fg);
+  user-select: none;
+  /* 图片浮条内部控件用的 --tb-* 名映射到共享变量（表格浮条不用这些名、无副作用）。 */
+  --tb-hover: var(--mica-acrylic-hover);
+  --tb-active: var(--mica-acrylic-active);
+  --tb-field-bg: var(--mica-acrylic-field-bg);
+  --tb-field-border: var(--mica-acrylic-line);
+  --tb-toggle-stroke: var(--mica-acrylic-stroke);
+  --tb-track: var(--mica-acrylic-track);
+  --tb-thumb-gap: var(--mica-acrylic-thumb-gap);
+}
+/* 行容器：横向 flex，控件不压缩、居中对齐中线。 */
+.mica-toolbar .mtb-row { display: flex; flex-direction: row; align-items: center; gap: 6px; justify-content: center; }
+.mica-toolbar .mtb-row > * { flex-shrink: 0; }
+.mica-toolbar .mtb-row-info { justify-content: center; }
+.mica-toolbar .mtb-row-mid { justify-content: center; gap: 14px; }   /* 图片浮条中行：滑块+开关成组 */
+.mica-toolbar .mtb-row-ctrl { gap: 18px; }                           /* 图片浮条控制行：组间大间距 */
+/* 切档/首显的极轻淡入（只动 opacity，安全）。 */
+@keyframes mtbPulse { from { opacity: 0.45; } to { opacity: 1; } }
+.mica-toolbar.mtb-pulse { animation: mtbPulse 0.16s ease; }
+
+.mica-toolbar svg { display: block; }
+/* 图标统一 18px（图标内容铺满 viewBox 时视觉≈右键菜单 16~18）；步进 chevron 11px。 */
+.mica-toolbar .mtb-sbtn svg,
+.mica-toolbar .mtb-step-ico svg,
+.mica-toolbar .mtb-num-ico svg { width: 18px; height: 18px; }
+.mica-toolbar .mtb-num-btn svg { width: 11px; height: 11px; }
+
+/* 分段控件：细边 + 圆角包住一组按钮、内部细线分格（像「控件」非灰块）；选中项强调色高亮。 */
+.mica-toolbar .mtb-seg {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--mica-acrylic-line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.mica-toolbar .mtb-sbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 34px; height: 32px; padding: 0 8px;
+  border: none; background: transparent; color: inherit; cursor: pointer;
+  font: inherit; line-height: 1;
+}
+.mica-toolbar .mtb-sbtn + .mtb-sbtn { border-left: 1px solid var(--mica-acrylic-line); }
+.mica-toolbar .mtb-sbtn:hover { background: var(--mica-acrylic-hover); }
+.mica-toolbar .mtb-sbtn:active { background: var(--mica-acrylic-active); }
+.mica-toolbar .mtb-sbtn.mtb-active { background: var(--mica-accent, var(--mica-link)); color: #fff; }
+.mica-toolbar .mtb-sbtn.mtb-text { padding: 0 12px; }
+.mica-toolbar .mtb-sbtn.mtb-danger:hover { background: rgba(220, 70, 70, 0.16); color: #e25555; }
+
+/* 步进器（行数/列数/圆角/线宽）：图标 + [−] N [+]，细边 + 极淡阴影成组。 */
+.mica-toolbar .mtb-step {
+  display: inline-flex; align-items: center; gap: 1px;
+  height: 32px; padding: 0 4px 0 9px;
+  border: 1px solid var(--mica-acrylic-line);
+  border-radius: 7px;
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.05);
+}
+.mica-toolbar .mtb-step-ico { display: inline-flex; color: var(--mica-fg-muted); margin-right: 5px; }
+.mica-toolbar .mtb-step-btn {
+  min-width: 20px; height: 22px; padding: 0;
+  border: none; border-radius: 4px; background: transparent; color: inherit;
+  cursor: pointer; font-size: 15px; line-height: 1;
+}
+.mica-toolbar .mtb-step-btn:hover { background: var(--mica-acrylic-hover); }
+.mica-toolbar .mtb-step-btn.mtb-off { opacity: 0.35; pointer-events: none; }
+.mica-toolbar .mtb-step-val { min-width: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.mica-toolbar .mtb-disabled { opacity: 0.4; pointer-events: none; }
+
+.mica-toolbar .mtb-select {
+  height: 32px; padding: 0 6px;
+  border: 1px solid var(--mica-acrylic-line); border-radius: 7px;
+  background: transparent; color: inherit; font: inherit; cursor: pointer;
+}
+.mica-toolbar .mtb-select option { color: initial; } /* 下拉弹层用系统色，避免暗色下看不见 */
+
+/* ===== 图片浮条「独有控件」（imageToolbar.ts）：信息行 / 自适应开关 / NumberBox / 宽度滑块 =====
+   容器与通用控件（root/row/seg/sbtn/svg 尺寸/交互态）已并入上方 .mica-toolbar，这里只剩图片专属的。 */
+/* 信息行：文件名 · 原始尺寸（小字、次要色、单行省略）。line-height 由 .mica-toolbar 的 1.35 保证不裁字。 */
+.mica-toolbar .mtb-info {
+  color: var(--mica-fg-muted); font-size: 13px;
+  max-width: 380px; flex-shrink: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 自适应：WinUI ToggleSwitch（关=描边轨+小拇指；开=强调色轨+白拇指右移）。 */
+.mica-toolbar .mtb-toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.mica-toolbar .mtb-toggle input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.mica-toolbar .mtb-toggle-track {
+  position: relative; flex: 0 0 auto; width: 44px; height: 22px; box-sizing: border-box;
+  border: 1.5px solid var(--tb-toggle-stroke); border-radius: 11px; background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.mica-toolbar .mtb-toggle-thumb {
+  position: absolute; top: 50%; left: 4px; transform: translateY(-50%);
+  width: 13px; height: 13px; border-radius: 50%; background: var(--tb-toggle-stroke);
+  transition: left 0.15s, width 0.15s, height 0.15s, background 0.15s;
+}
+.mica-toolbar .mtb-toggle input:checked + .mtb-toggle-track {
+  background: var(--mica-accent, var(--mica-link)); border-color: var(--mica-accent, var(--mica-link));
+}
+.mica-toolbar .mtb-toggle input:checked + .mtb-toggle-track .mtb-toggle-thumb {
+  left: auto; right: 4px; width: 16px; height: 16px; background: #fff;
+}
+.mica-toolbar .mtb-toggle:hover .mtb-toggle-track { background: var(--tb-hover); }
+.mica-toolbar .mtb-toggle input:checked + .mtb-toggle-track:hover,
+.mica-toolbar .mtb-toggle:hover input:checked + .mtb-toggle-track { background: var(--mica-accent, var(--mica-link)); }
+.mica-toolbar .mtb-toggle-text { white-space: nowrap; }
+
+/* NumberBox（圆角/边框）：**图标在框外**（左）+ 字段框（值 + 右侧上下 chevron 步进）。 */
+.mica-toolbar .mtb-numwrap { display: inline-flex; align-items: center; gap: 7px; }
+.mica-toolbar .mtb-num-ico { display: inline-flex; color: var(--mica-fg-muted); }  /* 框外图标 */
+.mica-toolbar .mtb-num {
+  display: inline-flex; align-items: center; height: 32px; padding: 0 3px 0 11px; gap: 8px;
+  background: var(--tb-field-bg); border: 1px solid var(--tb-field-border); border-radius: 5px;
+}
+.mica-toolbar .mtb-num-val { min-width: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.mica-toolbar .mtb-num-spin { display: flex; flex-direction: column; }
+.mica-toolbar .mtb-num-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 15px; padding: 0; border: none; border-radius: 4px;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.mica-toolbar .mtb-num-btn:hover { background: var(--tb-hover); }
+.mica-toolbar .mtb-num-btn:active { background: var(--tb-active); }
+.mica-toolbar .mtb-num-btn.mtb-off { opacity: 0.3; pointer-events: none; }
+
+/* 宽度：WinUI 风自绘滑块（细长轨道 + 系统色已滑过段 + 小圆点拇指 + 悬浮淡色大圆）+ 当前百分比标签。
+   自适应开启时整组禁用（变灰、不可点）。 */
+.mica-toolbar .mtb-width { display: inline-flex; align-items: center; gap: 12px; height: 32px; padding: 0 2px 0 6px; }
+.mica-toolbar .mtb-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 140px; height: 18px; margin: 0; cursor: pointer; background: transparent;
+  --pct: 50%; /* 已滑过比例，由 JS（syncSliderFill）实时写入 */
+}
+/* 轨道：细（4px）、圆头；左侧已滑过= 系统色，右侧= 灰。WebKit range 不自动填左侧，故用 --pct 渐变手动分段。 */
+.mica-toolbar .mtb-slider::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right,
+    var(--mica-accent, var(--mica-link)) 0 var(--pct), var(--tb-track) var(--pct) 100%);
+}
+/* 拇指：系统色小圆点 + 一圈底色「缺口环」（border 用底色，做出与轨道的留白）+ 极淡外描边。 */
+.mica-toolbar .mtb-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 15px; margin-top: -5.5px; box-sizing: border-box;
+  border-radius: 50%; background: var(--mica-accent, var(--mica-link));
+  border: 3px solid var(--tb-thumb-gap);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.13s ease;
+}
+/* 悬浮/拖动：拇指外圈浮出一圈很淡的系统色大圆（对标 Win11 官网滑块）。 */
+.mica-toolbar .mtb-slider:hover::-webkit-slider-thumb,
+.mica-toolbar .mtb-slider:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12),
+              0 0 0 5px color-mix(in srgb, var(--mica-accent, var(--mica-link)) 20%, transparent);
+}
+.mica-toolbar .mtb-width-val {
+  /* 固定宽度（非 min-width）：空串↔"60%"↔"100%" 宽度恒定，开关自适应时浮条不会左右抖。 */
+  width: 44px; flex: 0 0 44px; text-align: left; color: var(--mica-fg-muted); font-variant-numeric: tabular-nums;
+}
+
+/* ===== 表格行/列拖动重排：把手层 + 把手 + 落点指示线（见 tableReorder.ts）=====
+   把手层是 wysiwygEl 的绝对定位子元素、铺满但不挡事件（pointer-events:none），只有把手本身可点。 */
+.mica-table-handles { position: absolute; inset: 0; pointer-events: none; z-index: 25; }
+.mica-table-handles .mtb-handle {
+  position: absolute; pointer-events: auto; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--mica-fg-muted); background: var(--mica-surface);
+  border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 4px;
+  opacity: 0.9; cursor: grab; transition: background 0.12s, color 0.12s, opacity 0.12s;
+}
+.mica-table-handles .mtb-handle:hover { background: var(--mica-accent, var(--mica-link)); color: #fff; opacity: 1; }
+.mica-table-handles .mtb-handle:active { cursor: grabbing; }
+.mica-table-handles .mtb-rowh { border-radius: 4px 0 0 4px; } /* 贴表左缘，右角不圆 */
+.mica-table-handles .mtb-colh { border-radius: 4px 4px 0 0; } /* 贴表顶缘，下角不圆 */
+.mica-table-handles .mtb-colh svg { transform: rotate(90deg); } /* 横短条把抓握点旋成 3×2 */
+.mica-table-handles .mtb-handle-off { opacity: 0.3; cursor: not-allowed; }
+.mica-table-handles .mtb-handle-off:hover { background: var(--mica-surface); color: var(--mica-fg-muted); opacity: 0.4; }
+.mica-table-handles .mtb-handle svg { display: block; }
+/* 落点指示线 */
+.mica-table-handles .mtb-drop-line { position: absolute; pointer-events: none; z-index: 26; background: var(--mica-accent, var(--mica-link)); border-radius: 2px; }
+.mica-table-handles .mtb-drop-h { height: 2px; }
+.mica-table-handles .mtb-drop-v { width: 2px; }
+.mica-table-handles .mtb-drop-noop { opacity: 0.35; } /* 落回原位 */
+
+/* ===== 任务列表 =====
+   GFM 的任务项只渲染 <li data-item-type="task" data-checked="true|false">（无真实勾选框，
+   crepe 主题才补 UI），这里用 CSS 画勾选框。复选框画在 li 内部左侧 padding 区（正向偏移，
+   保证点击命中 li，配合 createEditor 的 handleClickOn 切换 checked）。 */
+.milkdown li[data-item-type="task"] {
+  list-style: none;
+}
+/* 勾选框（外框）：画成**段落首行内的行内元素**（li > p 的 ::before），用 vertical-align:middle 对齐。
+   为什么不用绝对定位：绝对定位锚到「行盒」，而行盒中心 ≠ 文字光学中心，且中/英文字形在行盒里的视觉
+   位置略有差异 → 各种内容对不齐、没法通吃。改用行内 ::before + vertical-align:middle 后，对齐基准是
+   **父元素的字体度量（baseline + x-height/2）**，与具体填什么字（中文/全大写/全小写/中英夹杂）无关，
+   故各种内容都稳定对齐。对勾用单元素背景 SVG（伪元素只有一个 ::before 可用，::after 无法锚到 ::before）。
+   ★整体上下微调改下面的 top（负=上移）；左右间距改 margin-right；对勾大小改 background-size。 */
+.milkdown li[data-item-type="task"] > p:first-of-type::before {
+  content: "";
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  top: -0.05em;        /* ← 细调：相对字体中线略上移，视觉更居中（负=上移） */
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.5em;
+  box-sizing: border-box;
+  border: 1.5px solid var(--mica-fg-muted);
+  border-radius: 4px;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.76em;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+/* 选中：填强调色 + 白色对勾（内联 SVG，stroke=white）。
+   text-decoration:line-through 不会划到 inline-block（CSS 规范：原子行内盒不被祖先文本装饰线穿过），故对勾框不被划线。 */
+.milkdown li[data-item-type="task"][data-checked="true"] > p:first-of-type::before {
+  border-color: var(--mica-accent, var(--mica-link));
+  background-color: var(--mica-accent, var(--mica-link));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5 7 12l5.5-6.5'/%3E%3C/svg%3E");
+}
+/* 已完成项文字淡化 + 删除线（对标 Typora/常见笔记） */
+.milkdown li[data-item-type="task"][data-checked="true"] {
+  color: var(--mica-fg-muted);
+  text-decoration: line-through;
+}
+
+/* Wikilinks (custom) */
+.milkdown .wikilink {
+  color: var(--mica-link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+/* ===== 行内嵌入（行内公式 / 行内代码，共用 inlineEmbedView 三态 nodeView）=====
+   结构：.mica-embed.<rootClass> > .mica-embed-render（渲染态）
+       + .mica-embed-reveal（区分符 .mica-embed-delim + 编辑 <input> .mica-embed-src）
+       + .mica-embed-preview（公式预览卡片；代码无）。
+   三态由 nodeView 切 display：渲染 / 显露(.is-revealed) / 编辑(.is-editing)。 */
+.milkdown .mica-embed { display: inline; position: relative; } /* relative：预览卡片定位锚点 */
+.milkdown .mica-embed-render { cursor: text; }
+.milkdown .mica-embed-reveal { display: inline; }
+.milkdown .mica-embed-delim { color: var(--mica-fg-muted); user-select: none; } /* 区分符（$/反引号）弱化色，非紫色 */
+.milkdown .mica-embed-empty { /* 空内容轻提示 */
+  color: var(--mica-fg-muted); opacity: 0.6; font-size: 0.85em; font-family: var(--mica-font-body);
+}
+/* 编辑用 <input>：无边框透明、与正文同基线、字体随父容器、按内容精确收缩 */
+.milkdown .mica-embed-src {
+  box-sizing: border-box;
+  display: inline-block;
+  border: none; padding: 0; margin: 0;
+  background: transparent;
+  color: var(--mica-fg);            /* 编辑时源码正常色，不是主题色 */
+  font-family: inherit; font-size: inherit; line-height: inherit; /* 表单控件默认不继承字体，显式继承父容器 */
+  vertical-align: baseline;         /* <input> 有文本基线，与正文对齐（修「源码上移」） */
+  min-width: 0; width: auto; height: auto;  /* 空内容时贴合到近零宽（两区分符紧贴，修「无选区插入时中间一大段空白」） */
+  text-align: left; resize: none; outline: none; overflow: hidden;
+  field-sizing: content;            /* 精确贴合内容宽度（消除与闭区分符空隙、空近零宽；旧内核走 JS ch 退路） */
+}
+
+/* 行内公式：源码等宽、与正文同字号；预览卡片浮在下方居中对齐 $…$ 中点 */
+.milkdown .mica-math-inline { margin: 0 0.18em; }               /* 与前后文字留一点点距离 */
+.milkdown .mica-math-inline .mica-embed-reveal { font-family: var(--mica-font-mono); }
+.milkdown .mica-math-inline .mica-embed-preview {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%); /* 预览中点对齐 $…$ 中点 */
+  margin-top: 6px; z-index: 20; white-space: nowrap;
+  font-family: var(--mica-font-body);
+  background: var(--mica-surface);
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 8px; padding: 8px 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+/* 行内代码：渲染态 = chip（主题色文字 + 更白底 + 细边）；显露/编辑态 = `源码`（正常色、反引号 muted、无底） */
+.milkdown .mica-inline-code { margin: 0 0.15em; }               /* chip 与前后【外部】文字留距 */
+.milkdown .mica-inline-code .mica-embed-render {
+  font-family: var(--mica-font-mono); font-size: 0.9em;
+  background: var(--mica-inlinecode-bg);
+  color: var(--mica-accent, var(--mica-link));                  /* 主题色（宿主经 theme.update 推 --mica-accent） */
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  padding: 1px 5px; border-radius: 4px;
+}
+.milkdown .mica-inline-code .mica-embed-reveal { font-family: var(--mica-font-mono); font-size: 0.9em; }
+
+/* ===== 块级公式（KaTeX，createMathBlockView）=====
+   渲染态 .mica-math-render / 显露编辑态 .mica-math-reveal（$$ 包裹 textarea .mica-math-src）/ 预览 .mica-math-preview。 */
+.milkdown .mica-math-block { display: block; text-align: center; margin: 0.8em 0; }
+.milkdown .mica-math-render { cursor: pointer; }
+.milkdown .mica-math-block .mica-math-reveal { display: block; text-align: left; font-family: var(--mica-font-mono); }
+.milkdown .mica-math-delim { color: var(--mica-fg-muted); user-select: none; }
+.milkdown .mica-math-block .mica-math-delim { display: block; } /* 块级 $$ 各自成行 */
+.milkdown .mica-math-empty {
+  color: var(--mica-fg-muted); opacity: 0.6; font-size: 0.85em; font-family: var(--mica-font-body);
+}
+.milkdown .mica-math-block .mica-math-src {
+  box-sizing: border-box; display: block; width: 100%; margin: 4px 0;
+  border: none; padding: 0; background: transparent; color: var(--mica-fg);
+  font-family: var(--mica-font-mono); font-size: 0.92em; line-height: 1.5;
+  text-align: left; resize: none; outline: none; overflow: hidden;
+}
+.milkdown .mica-math-block .mica-math-preview {
+  font-family: var(--mica-font-body);
+  background: var(--mica-surface);
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 8px; padding: 8px 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  margin: 6px auto 0; text-align: center; max-width: 100%; overflow-x: auto;
+}
+
+.milkdown .katex { font-size: 1.12em; line-height: normal; } /* KaTeX 字形偏小，略放大与正文等大 */
+
+/* ===== 代码块（CodeMirror 6，@milkdown/components/code-block） =====
+   渲染结构：.milkdown-code-block（卡片）> .tools（右上工具栏：语言选择 + 复制）
+   + .codemirror-host（CM 挂载点）；初始化前是 .milkdown-code-block-placeholder(pre)。
+   不带 crepe 主题，故工具栏样式在此自定义，配色走 Fluent + 明暗变量。 */
+.milkdown .milkdown-code-block {
+  position: relative;
+  background: var(--mica-codeblock-bg);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  border-radius: 8px;
+  margin: 0.6em 0;
+  padding: 8px 12px;
+}
+/* 初始化前占位 pre：去掉自身卡片样式，避免与外层重复；留出顶部工具栏空间 */
+.milkdown .milkdown-code-block-placeholder {
+  margin: 0;
+  padding: 26px 0 0;
+  background: transparent;
+  overflow-x: auto;
+}
+
+/* 顶部工具栏：占据正常流的一行（右对齐），把代码内容自然顶到下方，避免与首行代码重叠。
+   仍用 position:relative 作为语言下拉面板(.list-wrapper)的定位锚点。 */
+.milkdown .milkdown-code-block .tools {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.milkdown .milkdown-code-block .language-button,
+.milkdown .milkdown-code-block .copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  font-family: var(--mica-font-body);
+  font-size: 12px;
+  color: var(--mica-fg-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.milkdown .milkdown-code-block .language-button:hover,
+.milkdown .milkdown-code-block .copy-button:hover {
+  background: rgba(128, 128, 128, 0.14);
+  color: var(--mica-fg);
+}
+.milkdown .milkdown-code-block .milkdown-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 语言下拉面板：锚定到整条工具栏(.tools)底部、右对齐，紧贴按钮下方展开
+   （之前相对语言按钮定位，视觉上飘得偏低）。 */
+.milkdown .milkdown-code-block .language-picker { position: static; }
+.milkdown .milkdown-code-block .list-wrapper {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 210px;
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  background: var(--mica-surface);
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  z-index: 5;
+}
+.milkdown .milkdown-code-block .search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  color: var(--mica-fg-muted);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.18);
+}
+.milkdown .milkdown-code-block .search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--mica-fg);
+  font-family: var(--mica-font-body);
+  font-size: 13px;
+}
+.milkdown .milkdown-code-block .language-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+}
+.milkdown .milkdown-code-block .language-list-item {
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--mica-fg);
+  cursor: pointer;
+}
+.milkdown .milkdown-code-block .language-list-item:hover,
+.milkdown .milkdown-code-block .language-list-item.selected,
+.milkdown .milkdown-code-block .language-list-item[aria-selected="true"] {
+  background: rgba(128, 128, 128, 0.16);
+}
+
+/* CodeMirror 宿主 */
+.milkdown .milkdown-code-block .codemirror-host { margin-top: 2px; }
+.milkdown .milkdown-code-block .cm-editor { background: transparent; }
+.milkdown .milkdown-code-block .cm-editor .cm-scroller { overflow-x: auto; }
+
+/* ===== gapcursor =====
+   让光标能停在块（代码块/公式块）的上下空隙：尤其文档首行就是块时，可在其前面另起一行。
+   prosemirror-gapcursor 自带样式用黑色描边，这里改用 --mica-fg 跟随明暗主题。 */
+.milkdown .ProseMirror-gapcursor { display: none; pointer-events: none; position: absolute; }
+.milkdown .ProseMirror-gapcursor::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 24px;
+  border-top: 1px solid var(--mica-fg);
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+}
+@keyframes ProseMirror-cursor-blink { to { visibility: hidden; } }
+.milkdown .ProseMirror-focused .ProseMirror-gapcursor { display: block; }
+/* gapcursor 激活时（如点在「文首就是图片块」的前面、或两图块之间）浏览器可能仍渲染一个原生竖线 caret，和
+   gapcursor 的横线叠成「双光标」（用户反馈 2）。gapcursor 元素仅在该选区存在时才进 DOM，故 :has 命中时把原生
+   caret 透明掉、只留横线。块级图片同样需要它（上一轮误删导致复发）。 */
+.milkdown .ProseMirror:has(.ProseMirror-gapcursor) { caret-color: transparent; }
+
+/* ===== 图片（自定义 image 节点，**行内原子 + 严格独占一行**）=====
+   显示 src 经宿主 img.mica.local 管道加载（见 imageNode.ts / EditorHostView）。基础显示：不超行宽、随窗口自适应
+   （对标 Typora，永不出横向滚动条）；左中右对齐已支持，圆角/边框是二期。
+   节点是**行内 atom**（2026-06 最终定稿）：图前 = 段落 offset 0（图左侧）、图后 = offset 1（图右侧），与「点图左→
+   光标在前、点图右→光标在后」直觉一致；删空行走 PM 原生段落合并；独占一行靠 createEditor 的独占逻辑（图旁打字→另起一行）。
+   外层 .mica-image-wrap 是行内块（inline-block），居中靠父段落 text-align（图独占段时段落里只有图）。 */
+.milkdown .mica-image-wrap {
+  display: inline-block;
+  position: relative;          /* 给贴图竖线/选中描边/未来浮动条定位 */
+  max-width: 100%;             /* 不超文本列宽 */
+  user-select: none;           /* 图非文本：禁原生选区，免被 ::selection 灰底罩成「变暗」（反馈 4） */
+  vertical-align: bottom;      /* 消除行内基线下的空隙 */
+  border-radius: 2px;          /* 与 img 默认圆角一致；浮条改圆角时 NodeView 把实际值写进内联 style 覆盖。
+                                  选中框/待删红框（outline/::after）靠它跟着圆（Chromium outline 随 border-radius 圆角）。 */
+}
+.milkdown img.mica-image {
+  display: block;
+  width: 100%;                 /* 填满外层 wrap：默认 wrap 收缩到图自然宽（= 自然尺寸，被下面 max-width 钉在行宽内）；
+                                  当 wrap 设了显示宽度 width:N%（浮条滑块）时，图随之缩放到行宽的 N%。 */
+  max-width: 100%;
+  height: auto;
+  box-sizing: border-box;
+  border-radius: 2px;          /* 圆角默认值（浮条设了 radius 时由内联 style 覆盖） */
+}
+
+/* 裁剪（第三期，第四轮改「内层盒」）：NodeView 把放大的 img 包进内层 .mica-image-clip（overflow:hidden）裁到可视窗，
+   收住超大绝对 img 的布局溢出（否则撑出文档产生横向滚动条）。竖线/光标伪元素挂外层 wrap、不被裁。内层盒/img 的定位
+   与圆角都走 NodeView 内联样式；wrap 只负责定宽（据原图补「裁剪区自然像素宽」）+ aspect-ratio + 边框/选中框圆角。 */
+.milkdown .mica-image-clip { display: block; }
+
+/* 图片组（第四期）：**真实可见的圆角矩形容器**（选中变色），单行多图**等高**。
+   · 容器有几像素 padding + 图间 gap，故「点图间空白/内边距 = 点到容器（选中容器）、只有点中某张图才选中那张图」
+     —— 这套点击语义由 createEditor 的 imageClickPlugin 实现（容器与图都是 NodeSelection、永不在组内落文本光标）。
+   · 等高：每张图外层 wrap `flex-grow=有效显示比例`（image NodeView 加载后写内联 style），align-items:flex-start +
+     img width:100%/height:auto → 各图高 = 内宽/Σ宽高比（唯一解）。裁剪图按裁剪区比例。 */
+/* 容器 = 竖向堆叠多行（Option B：用户掌控的行）。每个 .mica-gallery-row 是一整行（nowrap+填满+等高）。 */
+.milkdown .mica-image-group {
+  display: inline-flex;        /* 行内 atom（活在段落里）；width:100% 占满整行 → 视觉等同块级，但保留行内的光标语义 */
+  flex-direction: column;      /* 多行竖向堆叠 */
+  width: 100%;
+  user-select: none;          /* 图册整块非文本：禁原生选区，免被 ::selection 灰底罩成「变暗」（反馈 4） */
+  box-sizing: border-box;
+  vertical-align: top;         /* 行内基线对齐：顶对齐、消除下方空隙 */
+  gap: 6px;                    /* 行间距 */
+  padding: 6px;                /* 内边距：留出可点到容器的空白条（点这里=选中容器，不会落到某张图上） */
+  background: var(--mica-image-group-bg); /* Fluent 云母基色（≈窗口色），像浮在白页上的材质卡片 */
+  border: 1px solid var(--mica-image-group-border, rgba(127, 127, 127, 0.28));
+  border-radius: 8px;
+  position: relative;
+  cursor: default;
+}
+/* 隐藏框线选项（data-frameless）：去掉边框/底色/内边距，纯靠 gap 分隔 */
+.milkdown .mica-image-group[data-frameless] { background: transparent; border-color: transparent; padding: 0; }
+/* 一行：nowrap flex，每图 flex-grow=宽高比 → 行内各图等高、整行填满（行高=内宽/Σ宽高比，唯一解）。每行都填满（含末行）。 */
+.milkdown .mica-gallery-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+.milkdown .mica-gallery-row > .mica-image-wrap {
+  flex: 1 1 0;        /* 基准 0、可增可缩；实际增量由内联 flex-grow=宽高比 覆盖（image NodeView 加载后设） */
+  min-width: 0;       /* 允许被 flex 压缩 */
+  max-width: none;    /* 覆盖独立图的 max-width:100%（组内宽度全交给 flex） */
+  margin: 0;
+}
+
+/* layout 切换工具条：容器选中（或悬浮）时浮在右上角；NodeView 自掌 DOM，绝对定位 → 不占 flex/列流。 */
+.milkdown .mica-gallery-bar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;                    /* 压过子图（裁剪图 img 绝对定位会抬栈）与容器选中描边 */
+  display: none;                 /* 默认隐藏，仅容器选中/悬浮时显示 */
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  /* 复用浮条亚克力质感：半透白底 + 强模糊 + 极细边 + 柔和浮动阴影（暗色见下） */
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(127, 127, 127, 0.22);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+  user-select: none;
+}
+body.dark .milkdown .mica-gallery-bar {
+  background: rgba(44, 44, 44, 0.86);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+/* 容器选中（无激活子图）或鼠标悬浮容器时露出；空图册占位态不显示（切布局无意义）。 */
+.milkdown .mica-image-group.ProseMirror-selectednode:not(.mica-has-active) > .mica-gallery-bar,
+.milkdown .mica-image-group:hover > .mica-gallery-bar { display: flex; }
+.milkdown .mica-image-group:has(.mica-image-group-empty) > .mica-gallery-bar { display: none; }
+.milkdown .mica-gallery-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--mica-text, #333);
+  cursor: pointer;
+}
+.milkdown .mica-gallery-bar-btn:hover { background: color-mix(in srgb, var(--mica-text, #888) 12%, transparent); }
+.milkdown .mica-gallery-bar-btn.mica-active {       /* 当前布局/已隐藏边框：强调色高亮 */
+  color: var(--mica-accent, var(--mica-link));
+  background: color-mix(in srgb, var(--mica-accent, var(--mica-link)) 14%, transparent);
+}
+.milkdown .mica-gallery-bar-btn svg { width: 15px; height: 15px; }
+.milkdown .mica-gallery-bar-sep { width: 1px; align-self: stretch; margin: 3px 2px; background: rgba(127, 127, 127, 0.3); }
+/* 选中**整个容器**（点了内边距/图间空白）：强调色描边「框本身」+ 极淡强调底色 → 一眼是「容器被选中」，而非
+   「每张图都被选中」（用户实测 bug2）。**有激活子图时（.mica-has-active）不画**——那时只高亮被点的那张图。 */
+.milkdown .mica-image-group.ProseMirror-selectednode:not(.mica-has-active):not(.mica-pending-delete) {
+  border-color: var(--mica-accent, var(--mica-link));
+  box-shadow: 0 0 0 1px var(--mica-accent, var(--mica-link));
+  background: color-mix(in srgb, var(--mica-accent, var(--mica-link)) 8%, transparent);
+}
+/* 选中**容器内某一张图**：该图蓝色描边（与独立图选中同语言）。 */
+.milkdown .mica-image-group .mica-image-wrap.mica-img-active {
+  outline: 2px solid var(--mica-accent, var(--mica-link));
+  outline-offset: 1px;
+}
+/* 组内拖拽重排：落点指示线（一条竖线，绝对定位在容器内，dom 已 position:relative）。 */
+.milkdown .mica-image-group .mica-group-drop-indicator {
+  position: absolute;
+  top: 6px;                     /* top/height 由 JS 按目标图实际位置写内联（多行时只跟那一行的图等高，不撑满整容器） */
+  height: 60px;                 /* 兜底；showGalleryIndicator 会按目标图 offsetHeight 覆盖 */
+  width: 2px;
+  margin-left: -3px;            /* gap=6px 居中：贴在两图间空隙正中 */
+  background: var(--mica-accent, var(--mica-link));
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 3;
+}
+/* 新建行指示：拖到行间/顶/底时显示一条细横线（跨容器宽），示意「这里会成为新的一行」。top 由 JS 写内联。 */
+.milkdown .mica-image-group .mica-gallery-newrow-indicator {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 3px;
+  margin-top: -1.5px;          /* 居中在行间空隙 */
+  background: var(--mica-accent, var(--mica-link));
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 3;
+}
+/* 拖图进「空图册」的落点提示：空册无行内容、画不了竖线，故整块高亮（强调色描边 + 淡底，与「容器选中」同语言），
+   示意「松手放进这个图册」。class 由 imageDrag 的 showEmptyGalleryDropInto 加/清。 */
+.milkdown .mica-image-group.mica-gallery-drop-into {
+  border-color: var(--mica-accent, var(--mica-link));
+  box-shadow: 0 0 0 1px var(--mica-accent, var(--mica-link));
+  background: color-mix(in srgb, var(--mica-accent, var(--mica-link)) 12%, transparent);
+}
+/* 拖拽中（imageDrag）：全局禁选 + grabbing 光标；被拖那张图半透明（独立图/组内图共用）。 */
+body.mica-image-dragging,
+body.mica-image-dragging * { cursor: grabbing !important; user-select: none !important; }
+.milkdown .mica-image-wrap.mica-img-dragging { opacity: 0.4; }
+/* 拖到文档落点的占位条（widget decoration，插进文档流）：一条虚线高亮带，自然把下方内容往下推、明确示意落点
+   （反馈 3）。in-flow → 不必处理 body 的 CSS zoom 坐标换算，且能落到任意嵌套深度（列表项之间）。出现时做高度淡入动画（反馈 6）。 */
+.milkdown .mica-image-drop-spacer {
+  display: block;
+  height: 22px;
+  margin: 3px 0;
+  border-radius: 6px;
+  border: 1.5px dashed var(--mica-accent, var(--mica-link));
+  background: color-mix(in srgb, var(--mica-accent, var(--mica-link)) 12%, transparent);
+  pointer-events: none;
+  box-sizing: border-box;
+  animation: mica-drop-spacer-in 0.13s ease;
+}
+@keyframes mica-drop-spacer-in { from { height: 0; opacity: 0; margin: 0; } to { height: 22px; opacity: 1; } }
+/* 落点淡入（反馈 6）：刚落下的那张图淡入。只动 opacity（避免与翻转 transform 打架）。 */
+.milkdown .mica-image-wrap.mica-just-dropped { animation: mica-image-drop-in 0.2s ease; }
+@keyframes mica-image-drop-in { from { opacity: 0.2; } to { opacity: 1; } }
+/* 空图册占位：两个并列 WinUI3 风按钮（从文件 / 从剪贴板），整体在容器内居中（见 :has 规则）。 */
+.milkdown .mica-image-group-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px;
+  user-select: none;
+}
+/* 含占位时整个容器居中、给点高度（否则贴边、太矮）。 */
+.milkdown .mica-image-group:has(.mica-image-group-empty) {
+  justify-content: center;
+  align-items: center;
+  min-height: 76px;
+}
+.milkdown .mica-image-group-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  /* WinUI3 标准按钮：微底色 + 1px 实线描边 + 4px 圆角；底部一道更深的边模拟 Fluent 立体感。 */
+  border: 1px solid var(--mica-image-group-border, rgba(127, 127, 127, 0.35));
+  border-bottom-color: rgba(127, 127, 127, 0.5);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mica-text, #888) 5%, transparent);
+  color: var(--mica-text, inherit);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.milkdown .mica-image-group-empty-btn:hover {
+  background: color-mix(in srgb, var(--mica-text, #888) 9%, transparent);
+  border-color: rgba(127, 127, 127, 0.5);
+}
+.milkdown .mica-image-group-empty-btn:active {
+  background: color-mix(in srgb, var(--mica-text, #888) 4%, transparent);
+  color: var(--mica-text-secondary, rgba(127, 127, 127, 0.9));
+}
+.milkdown .mica-image-group-empty-icon { display: inline-flex; opacity: 0.85; }
+/* 二次确认删除：整个容器待删 → 与图片一致的红框 + 半透明红覆盖（不要叠选中蓝框/蓝底，见上面 :not(.mica-pending-delete)）。
+   class 由 imageDeletePlugin 经 PM 应用到 NodeView dom。红覆盖用 ::after（与 .mica-image-wrap.mica-pending-delete 同款）。 */
+.milkdown .mica-image-group.mica-pending-delete {
+  outline: 2px solid var(--mica-danger, #e53935);
+  outline-offset: 1px;
+}
+.milkdown .mica-image-group.mica-pending-delete::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(229, 57, 53, 0.25);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;       /* 压在子图之上（子图裁剪用绝对定位，会抬高栈） */
+}
+/* 容器内某张子图待删：红框须压过同时存在的「激活蓝框」（提高特异性到 0,4,0 盖过 .mica-img-active 行）。
+   红色覆盖层复用下方 .mica-image-wrap.mica-pending-delete::after。 */
+.milkdown .mica-image-group .mica-image-wrap.mica-pending-delete {
+  outline: 2px solid var(--mica-danger, #e53935);
+}
+
+/* 图独占一段时居中（段落里只有图）；data-align 左/右覆盖。表格不是 <p>，不受影响。 */
+.milkdown .ProseMirror p:has(> .mica-image-wrap) { text-align: center; }
+.milkdown .ProseMirror p:has(> .mica-image-wrap[data-align="left"])  { text-align: left; }
+.milkdown .ProseMirror p:has(> .mica-image-wrap[data-align="right"]) { text-align: right; }
+/* 满宽行内图/图片组后 PM 会插一个 trailingBreak <br> 另起一行 → 幻影空行；这类段落里的 trailingBreak 一律隐藏。 */
+.milkdown .ProseMirror p:has(> .mica-image-wrap) > br.ProseMirror-trailingBreak,
+.milkdown .ProseMirror p:has(> .mica-image-group) > br.ProseMirror-trailingBreak { display: none; }
+/* 首行缩进开启时，图片/图片组段落不缩进（否则被右推）。 */
+body.first-line-indent .milkdown .ProseMirror > p:has(> .mica-image-wrap),
+body.first-line-indent .milkdown .ProseMirror > p:has(> .mica-image-group) { text-indent: 0; }
+/* 锚点 chip 段落（块级 <div id> 拆出的行内锚点，单独占顶层段落）不首行缩进——锚点是「标识」不是正文，
+   被 text-indent:2em 右推会很怪（用户反复反馈：和图片段落同一类问题，照图片 :has() 排除法处理）。
+   chip 作首子（纯锚点行 / 锚点+后随文字行）才命中，正文里夹个 <u>/<sup> 的普通段落不受影响。 */
+body.first-line-indent .milkdown .ProseMirror > p:has(> .mica-anchor-host:first-child) { text-indent: 0; }
+
+/* 贴图竖线（光标可见）：光标在图前/图后时 imageCaretPlugin 给图打 mica-caret-before/after，在图左/右缘画整高竖线。
+   原生 caret 只有文字高、贴高图底角几乎看不见，故自绘并把原生 caret 透明掉。浅描边保证压在深色图上也看得见。 */
+.milkdown .mica-image-wrap.mica-caret-before::before,
+.milkdown .mica-image-wrap.mica-caret-after::after,
+.milkdown .mica-image-group.mica-caret-before::before,
+.milkdown .mica-image-group.mica-caret-after::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--mica-text, currentColor);
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.55);
+  animation: mica-caret-blink 1.1s steps(1) infinite;
+  pointer-events: none;
+  z-index: 1; /* 压在图上：裁剪图的 img 是绝对定位（positioned），不抬 z-index 会盖住竖线伪元素 */
+}
+.milkdown .mica-image-wrap.mica-caret-before::before,
+.milkdown .mica-image-group.mica-caret-before::before { left: 0; }
+.milkdown .mica-image-wrap.mica-caret-after::after,
+.milkdown .mica-image-group.mica-caret-after::after  { right: 0; }
+.milkdown .ProseMirror:has(.mica-caret-before),
+.milkdown .ProseMirror:has(.mica-caret-after) { caret-color: transparent; }
+@keyframes mica-caret-blink { 0%, 49% { opacity: 1; } 50%, 99% { opacity: 0; } 100% { opacity: 1; } }
+
+/* 选中图片 = 系统主题色（蓝）描边：图后退格/图前 Del 经 PM 选中 → ProseMirror-selectednode；Ctrl+A 全选时由
+   mica-selected 标记命中（见 createEditor.ts），保证整宽全选也能看到图被选中。 */
+.milkdown .mica-image-wrap.ProseMirror-selectednode,
+.milkdown .mica-image-wrap.mica-selected {
+  outline: 2px solid var(--mica-accent, var(--mica-link));
+  outline-offset: 1px;
+}
+
+/* 二次确认删除（设置开启时）：第一次按 Backspace/Del 把图标成「待删」——红框 + 半透明红覆盖，
+   再按一次才删（见 createEditor.ts handleImageDelete）。 */
+.milkdown .mica-image-wrap.mica-pending-delete {
+  outline: 2px solid var(--mica-danger, #e53935);
+  outline-offset: 1px;
+}
+.milkdown .mica-image-wrap.mica-pending-delete::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(229, 57, 53, 0.25);
+  border-radius: inherit;      /* 红色覆盖层跟随图片圆角 */
+  pointer-events: none;
+}
+
+/* 维护页「定位」命中节点后的高亮浮层：position:fixed 贴在目标视口位置，渐隐一次后由 JS 移除。
+   用独立浮层而非给元素加 box-shadow——表格在 .mica-table-scroll(overflow) 里，描边会被裁掉。 */
+.mica-reveal-overlay {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 2px var(--mica-accent, #0067c0),
+    0 0 0 6px color-mix(in srgb, var(--mica-accent, #0067c0) 22%, transparent);
+  animation: micaRevealOverlay 1.5s ease-out forwards;
+}
+@keyframes micaRevealOverlay {
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ===== 通用 HTML 节点（mica_html_block / mica_html_inline，见 htmlNode.ts）=====
+   渲染态：像普通网页一样自然显示，**不加块级选中框**（用户要求 #8）。单击 → 原地展开 CM6 行内原码编辑器。 */
+.mica-html-block {
+  position: relative;
+  margin: 0.5em 0;
+}
+/* 块内元素去掉首尾外边距塌陷（让 <p align> 等贴合块边）。 */
+.mica-html-block > :first-child { margin-top: 0; }
+.mica-html-block > :last-child { margin-bottom: 0; }
+/* 行内 HTML：随文流、不破坏行高，让 <kbd>/<sub>/<sup>/<mark> 等保持原生表现。 */
+.mica-html-inline { cursor: text; }
+.mica-html-block { cursor: text; }
+/* 渲染态**完全不加选中框**（用户 #3）：只有源码编辑时才显框。同时禁掉点击时浏览器把整块文字选蓝
+   （atom 内容是只读 DOM，点一下会被原生 selection 全选）。编辑态再恢复可选。 */
+.mica-html-block,
+.mica-html-inline {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mica-html-empty {
+  color: var(--mica-fg-muted);
+  font-style: italic;
+  font-size: 0.9em;
+}
+/* ===== 锚点标识（页内跳转目标，见 htmlNode.ts 的 renderAnchor）=====
+   带 id/name、无 href/style 的纯锚点 → 渲染成小药丸 chip（船锚图标 + 内文），让用户一眼认出「这里是锚点」
+   （对标行内代码/公式的特殊外观）。只显示图标+内文（无内文回退显示 id）；**悬浮自绘亚克力小框**显示 #id（用户 #4：不要原生 title）。 */
+.mica-anchor {
+  position: relative;                /* 悬浮框 ::after 的定位基准 */
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 7px 0 6px;
+  border-radius: 999px;
+  font-size: 0.82em;
+  line-height: 1.5;
+  min-height: 1.5em;                 /* 无内文(只图标)时也保持与有内文 chip 同高（否则只 12px 图标撑、偏矮，用户报） */
+  vertical-align: baseline;
+  background: var(--mica-anchor-bg, rgba(127, 127, 140, 0.16));
+  color: var(--mica-fg-muted);
+  cursor: pointer;
+}
+.mica-anchor:hover {
+  background: var(--mica-anchor-bg-hover, rgba(127, 127, 140, 0.28));
+  color: var(--mica-fg);
+}
+/* 悬浮显示 #id 的自绘小框（亚克力风，复用 --mica-acrylic-*；非原生 tooltip）。data-anchor-id 由 renderAnchor 写。 */
+.mica-anchor[data-anchor-id]:hover::after {
+  content: '#' attr(data-anchor-id);
+  position: absolute;
+  left: 0; bottom: calc(100% + 5px);
+  padding: 3px 9px;
+  border-radius: var(--mica-acrylic-radius, 8px);
+  font-family: var(--mica-font-mono);
+  font-size: 0.92em;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--mica-fg);
+  background: var(--mica-acrylic-bg);
+  backdrop-filter: var(--mica-acrylic-blur);
+  -webkit-backdrop-filter: var(--mica-acrylic-blur);
+  border: 1px solid var(--mica-acrylic-border);
+  box-shadow: var(--mica-acrylic-shadow);
+  pointer-events: none;
+  z-index: 60;
+}
+/* 图标紧贴文字：svg 块级去基线空隙、容器零宽贴合，避免「图标和文字间空白过大」（用户 #3）。 */
+.mica-anchor-icon { display: inline-flex; align-items: center; color: var(--mica-accent); }
+.mica-anchor-icon svg { display: block; }
+.mica-anchor-label { font-family: var(--mica-font-mono); white-space: nowrap; }
+/* 无内文的锚点＝只一个船锚图标：对称内边距、去 gap，别留空标签的偏移。 */
+.mica-anchor-empty { gap: 0; padding: 0 6px; }
+/* 渲染态平时不加框（用户 #3）；但**被选中时**（NodeSelection＝删除前的两步选中 / Backspace 选中块）
+   要显示「待删红框」——与图片删除特效一致（`--mica-danger` + 半透明红底），让用户看清要删的是哪个块
+   （用户 #4：「被删除时用红色框呀，和图片特效一样」）。`:not(.mica-html-editing)`：进入原码编辑时不叠这个框，
+   否则选中框 + 编辑框 = 双重框（用户 #4：点已选中的块进编辑出现双框）。 */
+.mica-html-block.ProseMirror-selectednode:not(.mica-html-editing),
+.mica-html-inline.ProseMirror-selectednode:not(.mica-html-editing) {
+  outline: 2px solid var(--mica-danger, #e53935);
+  outline-offset: 1px;
+  border-radius: 3px;
+  background: rgba(229, 57, 53, 0.18);
+}
+/* 编辑态：CM6 行内原码框，亚克力风字段底，与源码模式同款观感。 */
+.mica-html-editing {
+  display: block;
+  box-sizing: border-box;
+  padding: 6px 9px;
+  border: 1px solid var(--mica-accent);
+  border-radius: 6px;
+  background: var(--mica-acrylic-field-bg);
+  font-size: calc(var(--mica-font-size) - 1px);
+  /* 关键（用户 #1 真凶）：首行缩进 `text-indent:2em` 是**可继承属性**，会渗进 CM 的 .cm-content(display:block)
+     把框内原码文字右推 ~32px → 看着就是「编辑框前半部分一大片空白」。这里清零，框内文字贴左。 */
+  text-indent: 0;
+}
+.mica-html-block.mica-html-editing { margin: 0.5em 0; }
+/* 行内编辑态：行内块，宽度自适应内容、不撑满整行（min-width 收小，避免短标签前面一大片空）。 */
+span.mica-html-editing {
+  display: inline-block;
+  min-width: 2ch;
+  padding: 1px 5px;
+  vertical-align: middle;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.mica-html-editing .cm-editor { background: transparent; }
+.mica-html-editing .cm-scroller { overflow: visible; }
+/* 防御：个别真机环境报告过「行内原码框左侧出现一大片空白、内容右移」，dev 预览（含 zoom 1.25）始终复现不出、
+   editor.css 里也无泄漏到 .cm-* 的规则。这里强制 CM 内容贴左、不 flex 撑宽、缩小行内边距，作为兜底，
+   万一是某环境的 flex 对齐/宽度怪癖也能压住。根因待真机单独排查（见 docs/编辑器实现笔记.md）。 */
+.mica-html-editing .cm-scroller { justify-content: flex-start; }
+.mica-html-editing .cm-content { flex-grow: 0; }
+.mica-html-editing .cm-line { padding-left: 2px; }
+/* 折叠标题可点（原生 <details>），手型提示「点这里展开/收起」。 */
+.mica-html-block summary { cursor: pointer; }
+
+/* ===== 折叠块（mica_details，原生可编辑节点）=====
+   自绘三角 marker 放在 summary 左侧 22px 区——与 NodeView 的「点击 x<22px 才切换折叠、否则只编辑标题」阈值对应。 */
+.mica-details {
+  margin: 0.6em 0;
+  border: 1px solid var(--mica-border, rgba(127, 127, 140, 0.28));
+  border-radius: 6px;
+  background: var(--mica-acrylic-field-bg, rgba(127, 127, 140, 0.06));
+  padding: 2px 10px;
+}
+.mica-details > summary.mica-details-summary {
+  list-style: none;                 /* 隐藏 Firefox 默认 marker */
+  cursor: text;                     /* 文字区＝编辑标题 */
+  position: relative;
+  padding: 4px 4px 4px 22px;        /* 左 22px 给三角（对应 NodeView 22 阈值） */
+  font-weight: 600;
+  outline: none;
+}
+.mica-details > summary.mica-details-summary::-webkit-details-marker { display: none; } /* 隐藏 Chromium/WebKit 默认 marker */
+.mica-details > summary.mica-details-summary::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  /* 对齐第一行文字中心（不再用 50% 居中整个 summary 框——框含空正文时会偏下，用户 #4）。
+     summary padding-top 4px + 半行高(0.75em) = 行中心；三角半高 4px 与 padding 抵消 → top:0.75em。 */
+  top: 0.75em;
+  width: 0; height: 0;
+  border-left: 5px solid var(--mica-fg-muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.12s ease;
+  cursor: pointer;                  /* 三角区＝切换折叠 */
+}
+.mica-details[open] > summary.mica-details-summary::before { transform: rotate(90deg); }
+/* 空标题占位（PM 空 textblock 里只有 trailingBreak 时显示提示文字）。
+   **绝对定位贴到第一行文字起点**——否则占位文字渲染在 trailingBreak 之后、掉到第二行、和光标错位（用户 #2）。 */
+.mica-details > summary.mica-details-summary:has(> br.ProseMirror-trailingBreak:only-child)::after {
+  content: '折叠标题';
+  position: absolute;
+  left: 22px; top: 4px;             /* = summary 的 padding-left / padding-top，贴住光标起点 */
+  color: var(--mica-fg-muted);
+  opacity: 0.55;
+  pointer-events: none;
+}
+/* 正文与三角区拉开一点。 */
+.mica-details > :not(summary) { margin-left: 4px; }
+/* 首行缩进开启时，折叠正文段落不缩进（容器已有内边距，再缩进会怪）。 */
+body.first-line-indent .milkdown .ProseMirror .mica-details > p { text-indent: 0; }
+
+/* 按住 Ctrl/Cmd 悬停链接 → 手型指针，提示「可点击跳转/打开」（单击=编辑、Ctrl+单击=跳转，用户 #11）。
+   body.mica-mod-held 由 createEditor 的 wireModKeyCursor 在按键时挂/卸。覆盖渲染 HTML 里的 <a> 一并生效。 */
+body.mica-mod-held .ProseMirror a,
+body.mica-mod-held .mica-html-block a,
+body.mica-mod-held .mica-html-inline a { cursor: pointer; }

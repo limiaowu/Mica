@@ -1,0 +1,850 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Mica.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Mica.Controls"
+    xmlns:views="using:Mica.Views"
+    xmlns:models="using:Mica.Models"
+    mc:Ignorable="d"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="Mica">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.Resources>
+            <!-- Reused by the VaultSwitcher dropdown's hover preview (built in code in
+                 VaultSwitcherFlyout_Opening): the same notebook-card visuals as the home
+                 GridView, minus the interaction handlers. -->
+            <DataTemplate x:Key="NotebookPreviewTemplate" x:DataType="models:Notebook">
+                <!-- 注意：这里必须用不透明底色（SolidBackgroundFillColorBase），不能用卡片画刷
+                     CardBackgroundFillColorDefault——后者是半透明的，悬浮在编辑器正文上时正文会透出来。
+                     想换预览卡片底色就改这里的 Background。 -->
+                <Grid Width="220" Height="208" CornerRadius="8"
+                      Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                      BorderThickness="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="110"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" CornerRadius="8,8,0,0"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}">
+                        <TextBlock Text="{x:Bind Initial, Mode=OneWay}"
+                                   FontSize="40" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <Border Grid.Row="0" CornerRadius="8,8,0,0"
+                            Visibility="{x:Bind CoverVisibility, Mode=OneWay}">
+                        <Image Source="{x:Bind CoverImage, Mode=OneWay}" Stretch="UniformToFill"/>
+                    </Border>
+                    <StackPanel Grid.Row="1" Padding="12,8" Spacing="3">
+                        <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                   FontWeight="SemiBold" FontSize="14"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{x:Bind ShortDescription, Mode=OneWay}"
+                                   FontSize="12" Height="32" TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind CountText, Mode=OneWay}"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Custom TitleBar with MenuBar. 3 columns: menu (Auto) | centered notebook
+             name (*) | reserved width for the system caption buttons (set in code from
+             AppWindow.TitleBar.RightInset), so the name centers in the gap between the
+             menu and the min/max/close buttons rather than over the whole bar. -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Loaded="AppTitleBar_Loaded" SizeChanged="AppTitleBar_SizeChanged">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+
+                <Image Source="ms-appx:///Assets/mica.png"
+                       Width="20" Height="20"
+                       Margin="12,0,8,0"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False"/>
+                <TextBlock Text="Mica"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           IsHitTestVisible="False"/>
+
+            <!-- View history: back/forward between 笔记本 home / detail / editor.
+                 Sits right of the Mica title and left of the menu bar. -->
+            <Button x:Name="NavBackButton"
+                    Width="32" Height="28" Padding="0" Margin="0,0,2,0"
+                    VerticalAlignment="Center"
+                    Background="Transparent" BorderThickness="0"
+                    IsEnabled="False"
+                    Click="OnNavBack"
+                    ToolTipService.ToolTip="后退">
+                <FontIcon Glyph="&#xE72B;" FontSize="14"/>
+            </Button>
+            <Button x:Name="NavForwardButton"
+                    Width="32" Height="28" Padding="0" Margin="0,0,8,0"
+                    VerticalAlignment="Center"
+                    Background="Transparent" BorderThickness="0"
+                    IsEnabled="False"
+                    Click="OnNavForward"
+                    ToolTipService.ToolTip="前进">
+                <FontIcon Glyph="&#xE72A;" FontSize="14"/>
+            </Button>
+
+            <!-- Editor-scoped menus. Hidden on the notebook/settings overlay pages
+                 (see UpdateVaultNameVisibility) so File/Edit/Paragraph/... — and their
+                 keyboard accelerators — aren't active where they make no sense. -->
+            <MenuBar x:Name="MainMenuBar" VerticalAlignment="Center">
+
+                <!-- 文件 -->
+                <MenuBarItem Title="文件">
+                    <MenuFlyoutItem Text="新建" Click="OnNewNoteClick">
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="N" Modifiers="Control"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Text="新建窗口" IsEnabled="False"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+N"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="打开文件夹" Click="OnOpenVaultClick">
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="O" Modifiers="Control"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="保存" Click="OnSave">
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="S" Modifiers="Control"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Text="另存为" IsEnabled="False"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+S"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="关闭标签页" Click="OnCloseCurrentTab">
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="W" Modifiers="Control"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="偏好设置" IsEnabled="False"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="退出" Click="OnExit">
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Q" Modifiers="Control"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                </MenuBarItem>
+
+                <!-- 编辑 -->
+                <MenuBarItem Title="编辑">
+                    <MenuFlyoutItem Text="撤销" Click="OnEditorCommand" Tag="undo"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Z"/>
+                    <MenuFlyoutItem Text="重做" Click="OnEditorCommand" Tag="redo"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Y"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="剪切" Click="OnEditorCommand" Tag="cut"
+                                    KeyboardAcceleratorTextOverride="Ctrl+X"/>
+                    <MenuFlyoutItem Text="复制" Click="OnEditorCommand" Tag="copy"
+                                    KeyboardAcceleratorTextOverride="Ctrl+C"/>
+                    <MenuFlyoutItem Text="粘贴" Click="OnEditorCommand" Tag="paste"
+                                    KeyboardAcceleratorTextOverride="Ctrl+V"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="全选" Click="OnEditorCommand" Tag="selectAll"
+                                    KeyboardAcceleratorTextOverride="Ctrl+A"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="查找" IsEnabled="False"
+                                    KeyboardAcceleratorTextOverride="Ctrl+F"/>
+                    <MenuFlyoutItem Text="替换" IsEnabled="False"
+                                    KeyboardAcceleratorTextOverride="Ctrl+H"/>
+                </MenuBarItem>
+
+                <!-- 段落 -->
+                <!-- 注意：这些快捷键由 web 编辑器（createEditor.ts 的 paragraphKeymap）处理，不是
+                     XAML accelerator——因为编辑器（WebView2）持有焦点时 XAML 快捷键收不到这些键。
+                     所以这里只用 KeyboardAcceleratorTextOverride 显示文字，菜单点击仍走 OnEditorCommand。 -->
+                <MenuBarItem Title="段落">
+                    <MenuFlyoutItem Text="一级标题" Click="OnEditorCommand" Tag="heading1"
+                                    KeyboardAcceleratorTextOverride="Ctrl+1"/>
+                    <MenuFlyoutItem Text="二级标题" Click="OnEditorCommand" Tag="heading2"
+                                    KeyboardAcceleratorTextOverride="Ctrl+2"/>
+                    <MenuFlyoutItem Text="三级标题" Click="OnEditorCommand" Tag="heading3"
+                                    KeyboardAcceleratorTextOverride="Ctrl+3"/>
+                    <MenuFlyoutItem Text="四级标题" Click="OnEditorCommand" Tag="heading4"
+                                    KeyboardAcceleratorTextOverride="Ctrl+4"/>
+                    <MenuFlyoutItem Text="五级标题" Click="OnEditorCommand" Tag="heading5"
+                                    KeyboardAcceleratorTextOverride="Ctrl+5"/>
+                    <MenuFlyoutItem Text="六级标题" Click="OnEditorCommand" Tag="heading6"
+                                    KeyboardAcceleratorTextOverride="Ctrl+6"/>
+                    <MenuFlyoutItem Text="正文" Click="OnEditorCommand" Tag="paragraph"
+                                    KeyboardAcceleratorTextOverride="Ctrl+0"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="引用" Click="OnEditorCommand" Tag="blockquote"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+Q"/>
+                    <MenuFlyoutItem Text="代码块" Click="OnEditorCommand" Tag="codeBlock"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+K"/>
+                    <MenuFlyoutItem Text="插入表格" Click="OnInsertTable"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+T"/>
+                    <MenuFlyoutItem Text="公式块" Click="OnEditorCommand" Tag="mathBlock"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+M"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="无序列表" Click="OnEditorCommand" Tag="bulletList"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+]"/>
+                    <MenuFlyoutItem Text="有序列表" Click="OnEditorCommand" Tag="orderedList"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+["/>
+                    <MenuFlyoutItem Text="任务列表" Click="OnEditorCommand" Tag="taskList"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+X"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="折叠块" Click="OnEditorCommand" Tag="insertDetails"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+D"/>
+                    <MenuFlyoutItem Text="分割线" Click="OnEditorCommand" Tag="hr"/>
+                </MenuBarItem>
+
+                <!-- 格式 -->
+                <MenuBarItem Title="格式">
+                    <MenuFlyoutItem Text="加粗" Click="OnEditorCommand" Tag="bold"
+                                    KeyboardAcceleratorTextOverride="Ctrl+B"/>
+                    <MenuFlyoutItem Text="斜体" Click="OnEditorCommand" Tag="italic"
+                                    KeyboardAcceleratorTextOverride="Ctrl+I"/>
+                    <MenuFlyoutItem Text="删除线" Click="OnEditorCommand" Tag="strikethrough"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="行内代码" Click="OnEditorCommand" Tag="inlineCode"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+`"/>
+                    <MenuFlyoutItem Text="行内公式" Click="OnEditorCommand" Tag="mathInline"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+$"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="超链接" IsEnabled="False"
+                                    KeyboardAcceleratorTextOverride="Ctrl+K"/>
+                    <MenuFlyoutSubItem Text="图像">
+                        <MenuFlyoutItem Text="插入图片" Click="OnInsertImage"
+                                        KeyboardAcceleratorTextOverride="Ctrl+Shift+I"/>
+                        <MenuFlyoutItem Text="新建图册" Click="OnNewGallery"
+                                        KeyboardAcceleratorTextOverride="Ctrl+Shift+G"/>
+                    </MenuFlyoutSubItem>
+                    <MenuFlyoutSeparator/>
+                    <ToggleMenuFlyoutItem x:Name="FirstLineIndentMenu" Text="首行缩进"
+                                          Click="OnToggleFirstLineIndent"/>
+                </MenuBarItem>
+
+                <!-- 视图 -->
+                <MenuBarItem Title="视图">
+                    <ToggleMenuFlyoutItem x:Name="SidebarToggleMenu"
+                                          Text="侧边栏"
+                                          IsChecked="True"
+                                          Click="OnToggleSidebar">
+                        <ToggleMenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="E" Modifiers="Control,Shift"/>
+                        </ToggleMenuFlyoutItem.KeyboardAccelerators>
+                    </ToggleMenuFlyoutItem>
+                    <ToggleMenuFlyoutItem x:Name="SourceModeMenu"
+                                          Text="源代码模式"
+                                          Click="OnToggleSourceMode">
+                        <ToggleMenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="U" Modifiers="Control,Shift"/>
+                        </ToggleMenuFlyoutItem.KeyboardAccelerators>
+                    </ToggleMenuFlyoutItem>
+                    <MenuFlyoutSeparator/>
+                    <!-- 缩放（整体）。编辑器持有焦点时由 web 端按键自理（WebView2 吞掉按键，XAML accelerator
+                         不触发）；焦点在别处（如文件树）时由代码后置注册的真实 accelerator 触发（见 WireZoomAccelerators）。
+                         两者互补不重复。KeyboardAcceleratorTextOverride 仅负责显示文字（主键盘 +/-/0 无具名 VirtualKey）。 -->
+                    <MenuFlyoutItem x:Name="ZoomInMenuItem" Text="放大" Click="OnZoomIn"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+="/>
+                    <MenuFlyoutItem x:Name="ZoomOutMenuItem" Text="缩小" Click="OnZoomOut"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+-"/>
+                    <MenuFlyoutItem x:Name="ZoomResetMenuItem" Text="实际大小" Click="OnZoomReset"
+                                    KeyboardAcceleratorTextOverride="Ctrl+Shift+0"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="全屏" Click="OnToggleFullscreen">
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="F11"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                    <ToggleMenuFlyoutItem x:Name="AlwaysOnTopMenu"
+                                          Text="窗口置顶"
+                                          Click="OnToggleAlwaysOnTop"/>
+                </MenuBarItem>
+
+                <!-- 帮助 -->
+                <MenuBarItem Title="帮助">
+                    <MenuFlyoutItem Text="关于 Mica" Click="OnAbout"/>
+                </MenuBarItem>
+            </MenuBar>
+
+            </StackPanel>
+
+            <!-- Notebook switcher: its own middle column, centered between the menu and the
+                 caption buttons. Shows the active notebook's name + a chevron; the dropdown
+                 lists every notebook for one-click switching. A permanent control — shown
+                 whenever the editor view (FilesView) is active (see UpdateVaultNameVisibility). -->
+            <!-- 右侧 margin（52）≥ 日夜切换按钮宽度(40)+留白：切换器居中在 [左12, 右52] 区域内，
+                 无论笔记本名多长，其右边缘都至少离右侧 ThemeToggle 12px，不会再挨在一起。 -->
+            <DropDownButton x:Name="VaultSwitcher"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center"
+                            Margin="12,0,52,0"
+                            Padding="8,2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                <DropDownButton.Flyout>
+                    <MenuFlyout x:Name="VaultSwitcherFlyout" Placement="Bottom"
+                                Opening="VaultSwitcherFlyout_Opening"/>
+                </DropDownButton.Flyout>
+                <TextBlock x:Name="VaultNameText"
+                           Text="Mica"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="NoWrap"
+                           MaxWidth="300"/>
+            </DropDownButton>
+
+            <!-- App-level light/dark quick toggle (full 跟随系统/浅/深 lives in 设置). Right-
+                 aligned in the middle column so it sits just left of the system caption
+                 buttons (min/max/close), grouping window-level controls together. -->
+            <!-- ↑ 太靠下就调这里：把 Margin 的第二个数（顶部，现在是 2）改小/改负往上挪，改大往下挪。
+                 系统标题按钮约 32px 高、顶端对齐，所以这里用 VerticalAlignment=Top 让它与之对齐。 -->
+            <ToggleButton x:Name="ThemeToggle"
+                          Grid.Column="1"
+                          HorizontalAlignment="Right"
+                          Margin="0,0,0,0"
+                          Width="40" Height="32"
+                          Padding="0"
+                          VerticalAlignment="Top"
+                          HorizontalContentAlignment="Center"
+                          VerticalContentAlignment="Center"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Click="OnThemeToggleClick"
+                          ToolTipService.ToolTip="切换深色/浅色">
+                <ToggleButton.Resources>
+                    <!-- Default checked state is bright accent (too loud). Use a
+                         subtle gray so the toggle reads as a quiet utility, and keep
+                         the icon in the normal text color for crisp edges. -->
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#26808080"/>
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#33808080"/>
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#1A808080"/>
+                    <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="{ThemeResource TextFillColorPrimary}"/>
+                    <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="{ThemeResource TextFillColorPrimary}"/>
+                    <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="{ThemeResource TextFillColorPrimary}"/>
+                </ToggleButton.Resources>
+                <FontIcon x:Name="ThemeToggleIcon" Glyph="&#xE706;" FontSize="12"/>
+            </ToggleButton>
+        </Grid>
+
+        <!-- Main content: official NavigationView as the nav sidebar (hamburger expand/collapse
+             icon↔label, search at top, 笔记本/设置 footer, official selection indicator). The file
+             tree/大纲 is its OWN separate column (TreePanel) inside NavView.Content, toggled by the
+             工作区 nav item — NOT embedded in the pane, so a long tree can't push the footer (that
+             Auto-height bug is gone) and the 设置/笔记本 overlays cleanly cover [TreePanel + 编辑器]
+             via Grid.ColumnSpan while the nav pane stays put. -->
+        <NavigationView x:Name="NavView" Grid.Row="1"
+                        PaneDisplayMode="Left"
+                        IsPaneOpen="False"
+                        IsBackButtonVisible="Collapsed"
+                        IsSettingsVisible="True"
+                        IsTitleBarAutoPaddingEnabled="False"
+                        OpenPaneLength="200"
+                        CompactPaneLength="48"
+                        ItemInvoked="NavView_ItemInvoked">
+            <NavigationView.AutoSuggestBox>
+                <AutoSuggestBox x:Name="SearchBox"
+                                QueryIcon="Find"
+                                PlaceholderText="搜索文件…"
+                                TextMemberPath="Name"
+                                DisplayMemberPath="Name"
+                                TextChanged="SearchBox_TextChanged"
+                                SuggestionChosen="SearchBox_SuggestionChosen"
+                                QuerySubmitted="SearchBox_QuerySubmitted"/>
+            </NavigationView.AutoSuggestBox>
+            <NavigationView.Resources>
+                <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="Transparent"/>
+                <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="Transparent"/>
+                <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent"/>
+                <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent"/>
+                <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
+                <x:Double x:Key="NavigationViewContentGridCornerRadius">0</x:Double>
+            </NavigationView.Resources>
+
+            <!-- 工作区: toggles the TreePanel (tree/大纲). Invoking it also returns to the editor. -->
+            <NavigationView.MenuItems>
+                <NavigationViewItem x:Name="WorkspaceNavItem" Content="工作区" Tag="Workspace">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B7;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem x:Name="NotebooksNavItem" Content="笔记本" Tag="Notebooks">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8F1;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+
+            <!-- NavView.Content: the EditorSurface ([TreePanel | 编辑器]) and the 笔记本/详情/设置
+                 overlay pages are siblings in this Grid; only one is shown at a time. -->
+            <Grid>
+                <!-- Editor surface = [TreePanel | 编辑器] as ONE layer. The app is transparent for the
+                     Mica material, so an overlay page can't hide the tree by z-order alone (it'd show
+                     through) — instead the overlays collapse this whole surface (Show*Internal) so only
+                     Mica is behind them. TreePanel's own open/closed state is preserved inside here. -->
+                <Grid x:Name="EditorSurface" SizeChanged="EditorSurface_SizeChanged">
+                  <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+
+                <!-- Tree/大纲 panel: a separate, drag-resizable column (Width persists via the grip).
+                     Toggled by the 工作区 nav item; the * content row flexes — no height bug. -->
+                <Grid x:Name="TreePanel" Grid.Column="0" Width="240" Margin="2,0,2,2">
+                  <!-- 整个「目录树/大纲」面板的细淡边框（2026-06 美化）：框住 切换条 + 工具条 + 树/大纲 全部。
+                       想加深/去掉边框改 BorderBrush/BorderThickness；想找回面板底色加 Background。 -->
+                  <Border x:Name="SidebarFrame" Margin="2,2,2,4" CornerRadius="6"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                  <Grid x:Name="SidebarPanel">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>  <!-- 目录树/大纲 切换条 -->
+                        <RowDefinition Height="Auto"/>  <!-- 目录树工具条 -->
+                        <RowDefinition Height="*"/>     <!-- 树/大纲 内容 -->
+                    </Grid.RowDefinitions>
+
+                    <!-- 目录树 / 大纲 切换：官方 SelectorBar（图标，原生选中指示器）。
+                         旧的自绘胶囊+滑块换掉了——那套 TranslateTransform 动画在切换时会让内容
+                         「先模糊后清晰」（动画期缓存成位图再缩放重栅格），SelectorBar 无此问题。
+                         只放图标（目录树/大纲文字字数不等、对不齐），语义靠 ToolTip 说明。 -->
+                    <SelectorBar x:Name="SidebarSelector" Grid.Row="0" Margin="0,2,0,2"
+                                 HorizontalAlignment="Center"
+                                 SelectionChanged="SidebarSelector_SelectionChanged">
+                        <SelectorBarItem x:Name="SelectorFiles" Tag="files" IsSelected="True"
+                                         ToolTipService.ToolTip="目录树">
+                            <SelectorBarItem.Icon>
+                                <FontIcon Glyph="&#xE8B7;"/>
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
+                        <SelectorBarItem x:Name="SelectorOutline" Tag="outline"
+                                         ToolTipService.ToolTip="大纲">
+                            <SelectorBarItem.Icon>
+                                <FontIcon Glyph="&#xE8FD;"/>
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
+                    </SelectorBar>
+
+                    <!-- 原「路径区 + 笔记本名」头部已删（2026-06 美化）：笔记本名标题栏已显示，侧栏内由
+                         树顶「根目录行」(RootDropRow) 兼任根入口；路径不再在侧栏重复占一行。 -->
+
+                    <!-- 目录树工具条（仅目录树模式可见，大纲模式收起）。解决「目录树占满时根目录没
+                         空白可右键、建不了文件」——这里直接给「新建笔记/文件夹」入口。还有全部展开/收起。
+                         多选开关留到 P2（选择逻辑落地时一起加）。 -->
+                    <!-- 工具条分两段（2026-06）：左段随「多选模式」切换内容，右段（视图组）常驻。
+                         · 普通态 = [新建笔记/文件夹 + 定位]（CreateGroup）
+                         · 多选态 = [复制/剪切/删除]（EditGroup，占据同一位置）
+                         · 视图组 = [全部展开/收起 + 多选开关]（ViewGroup，始终显示）
+                         显隐切换在 OnToggleMultiSelect 里做（控制 Visibility，不改图标/不复用按钮）。 -->
+                    <StackPanel x:Name="TreeToolbar" Grid.Row="1" Orientation="Horizontal"
+                                Margin="6,6,6,4" Spacing="2">
+                        <StackPanel.Resources>
+                            <Style x:Key="TreeToolBtn" TargetType="Button">
+                                <Setter Property="Width" Value="30"/>
+                                <Setter Property="Height" Value="28"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </StackPanel.Resources>
+
+                        <!-- 普通组：新建笔记/文件夹 + 定位（多选模式下隐藏） -->
+                        <StackPanel x:Name="CreateGroup" Orientation="Horizontal" Spacing="2">
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnToolbarNewNote"
+                                    ToolTipService.ToolTip="新建笔记">
+                                <FontIcon Glyph="&#xE7C3;" FontSize="16"/>
+                            </Button>
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnToolbarNewFolder"
+                                    ToolTipService.ToolTip="新建文件夹">
+                                <FontIcon Glyph="&#xE8F4;" FontSize="16"/>
+                            </Button>
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnLocateActive"
+                                    ToolTipService.ToolTip="定位当前文件">
+                                <FontIcon Glyph="&#xE71E;" FontSize="16"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- 编辑组：复制/剪切/删除选中项（仅多选模式可见，作用于当前多选集；粘贴对多选无意义故不放） -->
+                        <StackPanel x:Name="EditGroup" Orientation="Horizontal" Spacing="2" Visibility="Collapsed">
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnToolbarCopy"
+                                    ToolTipService.ToolTip="复制选中">
+                                <FontIcon Glyph="&#xE8C8;" FontSize="16"/>
+                            </Button>
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnToolbarCut"
+                                    ToolTipService.ToolTip="剪切选中">
+                                <FontIcon Glyph="&#xE8C6;" FontSize="16"/>
+                            </Button>
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnToolbarDeleteSelection"
+                                    ToolTipService.ToolTip="删除选中">
+                                <FontIcon Glyph="&#xE74D;" FontSize="16"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- 视图组：全部展开/收起 + 多选开关（常驻，与左段留 8px 间隔） -->
+                        <StackPanel x:Name="ViewGroup" Orientation="Horizontal" Spacing="2" Margin="8,0,0,0">
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnExpandAll"
+                                    ToolTipService.ToolTip="全部展开">
+                                <FontIcon Glyph="&#xE70D;" FontSize="14"/>
+                            </Button>
+                            <Button Style="{StaticResource TreeToolBtn}" Click="OnCollapseAll"
+                                    ToolTipService.ToolTip="全部收起">
+                                <FontIcon Glyph="&#xE70E;" FontSize="14"/>
+                            </Button>
+                            <!-- 多选开关：开启后单击=切换选中（不打开/不展开）、各行显示勾选框、左段换成编辑组 -->
+                            <ToggleButton x:Name="MultiSelectToggle" Width="30" Height="28" Padding="0"
+                                          Background="Transparent" BorderThickness="0"
+                                          Click="OnToggleMultiSelect"
+                                          ToolTipService.ToolTip="多选模式">
+                                <FontIcon Glyph="&#xE8B3;" FontSize="16"/>
+                            </ToggleButton>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 工具条与树之间的细横线（2026-06 美化）。想加深/去掉改 Background 或删除。 -->
+                    <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1"
+                            Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                    <!-- 树/大纲 内容区：边框由外层 SidebarFrame 统一画（框住整个面板），这里只留内容。 -->
+                    <Grid Grid.Row="2" Margin="6,2,6,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 固定「根目录行」（仅目录树模式可见）：常驻在树顶、不随滚动消失，解决「目录全展开后
+                             没空白可右键/拖到根目录」。右键=根目录菜单（复用 FileTree_RightTapped），拖放=丢到根
+                             （复用 FileTreeRoot_DragOver/Drop）。名称由 UpdateSidebarHeader 命令式赋值。
+                             收尾阶段可用它取代上方独立的路径/名称区。 -->
+                        <Grid x:Name="RootDropRow" Grid.Row="0" Height="30"
+                              Background="Transparent" AllowDrop="True"
+                              RightTapped="FileTree_RightTapped"
+                              Tapped="FileTree_Tapped"
+                              DragEnter="RootRow_DragOver"
+                              DragOver="RootRow_DragOver"
+                              DragLeave="RootRow_DragLeave"
+                              Drop="RootRow_Drop">
+                            <!-- 拖拽落点高亮（与树行同款描边） -->
+                            <Border x:Name="RootRowHighlight" CornerRadius="4"
+                                    BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                    BorderThickness="1.5"
+                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                    Opacity="0.16" Visibility="Collapsed"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        Padding="8,0,4,0" Spacing="6">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="15"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="RootRowName" Text="工作区" FontSize="14"
+                                           FontWeight="SemiBold" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 文件树：自建扁平模型 + 官方 ItemsRepeater（虚拟化）。FileTree.ItemsSource
+                             绑到「可见行」扁平 ObservableCollection（窗口侧 RebuildVisibleRows/ExpandRow/
+                             CollapseRow 维护）。空白处右键挂在外层 ScrollViewer 上（行自己 e.Handled 截断）。 -->
+                        <ScrollViewer x:Name="FileTreeScroller" Grid.Row="1"
+                                      Background="Transparent"
+                                      IsTabStop="True"
+                                      AllowDrop="True"
+                                      RightTapped="FileTree_RightTapped"
+                                      Tapped="FileTree_Tapped"
+                                      KeyDown="FileTree_KeyDown"
+                                      DragOver="FileTreeRoot_DragOver"
+                                      Drop="FileTreeRoot_Drop"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollMode="Disabled"
+                                      HorizontalScrollBarVisibility="Disabled">
+                          <ItemsRepeater x:Name="FileTree" Margin="2,4,2,4"
+                                         ElementPrepared="FileTree_ElementPrepared">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="1"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:FileNode">
+                                    <!-- 行根：透明底（保证整行可命中点击），hover 由代码改 Background。
+                                         单击=选中（文件夹不展开/文件按设置打开）；双击文件夹名=展开收起；
+                                         展开收起也可点左侧小三角（Chevron_Tapped 自己 Handled，不触发选中）。 -->
+                                    <Grid Height="30" Background="Transparent"
+                                          CanDrag="True"
+                                          AllowDrop="True"
+                                          PointerEntered="FileRow_PointerEntered"
+                                          PointerExited="FileRow_PointerExited"
+                                          PointerPressed="FileRow_PointerPressed"
+                                          Tapped="FileRow_Tapped"
+                                          DoubleTapped="FileTreeItem_DoubleTapped"
+                                          RightTapped="FileTreeItem_RightTapped"
+                                          DragStarting="FileRow_DragStarting"
+                                          DropCompleted="FileRow_DropCompleted"
+                                          DragEnter="FileRow_DragEnter"
+                                          DragOver="FileRow_DragOver"
+                                          DragLeave="FileRow_DragLeave"
+                                          Drop="FileRow_Drop">
+                                        <!-- 鼠标悬停底色：{ThemeResource} 跟随元素主题（暗色正确）。由 IsHovered 驱动，
+                                             代替原先在代码里 set Grid.Background（那个画刷按应用级主题取、暗色用错色）。 -->
+                                        <Border CornerRadius="4"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                Visibility="{x:Bind HoverVisibility, Mode=OneWay}"/>
+                                        <!-- 选中高亮：干净的淡主题色底（不染字、不画框）——对标资源管理器多选。
+                                             之前还叠了「染字+染图标」，整行变蓝显得太重，已移除；选中只剩这层淡底。
+                                             想调深浅改 Opacity。 -->
+                                        <Border CornerRadius="4"
+                                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                Opacity="0.05"
+                                                Visibility="{x:Bind SelectionVisibility, Mode=OneWay}"/>
+                                        <!-- 拖拽落点高亮：描边方框，点亮表示「松手会丢到这一行（文件夹/或文件所在目录）」 -->
+                                        <Border CornerRadius="4"
+                                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                                BorderThickness="1.5"
+                                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                Opacity="0.16"
+                                                Visibility="{x:Bind DropTargetVisibility, Mode=OneWay}"/>
+                                        <!-- 打开的文件不再铺底色（旧的灰底太淡、看不清）——改用「左侧强调色竖条 + 文件名/图标染强调色」
+                                             标识当前打开文件（对标 VS Code），清晰且不与「选中淡蓝底」打架。 -->
+                                        <!-- 当前文件竖条：贴行最左、圆角胶囊（对标 WinUI 原生），永远指向打开文件 -->
+                                        <Border Width="3" Height="16" CornerRadius="1.5"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"/>
+                                        <!-- 内容：缩进(随 Depth) + [勾选框 | 箭头列 | 图标 | 名称] -->
+                                        <Grid Margin="{x:Bind ContentMargin, Mode=OneWay}" Padding="8,0,4,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="16"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- 多选勾选框：仅多选模式可见（CheckBoxVisibility）。只读（IsHitTestVisible=False）：
+                                                 点击落到行的 Tapped 上切换选中，勾选框 = 该节点是否在选中集（二元，无派生深浅）。
+                                                 MinWidth=0 去掉 CheckBox 默认大占位宽；ScaleTransform 0.8 整体缩小一圈（想再调大小改这里）。
+                                                 隐藏时 Auto 列收 0、不挤内容。 -->
+                                            <CheckBox Grid.Column="0" MinWidth="0" Padding="0" Margin="0,0,2,0"
+                                                      VerticalAlignment="Center" IsHitTestVisible="False"
+                                                      RenderTransformOrigin="0,0.5"
+                                                      IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                                                      Visibility="{x:Bind CheckBoxVisibility, Mode=OneWay}">
+                                                <CheckBox.RenderTransform>
+                                                    <ScaleTransform ScaleX="0.8" ScaleY="0.8"/>
+                                                </CheckBox.RenderTransform>
+                                            </CheckBox>
+                                            <!-- 小三角独立可点：透明底撑满列、自己 Tapped 并 Handled，
+                                                 单击只展开/收起、不触发整行的选中。 -->
+                                            <Border Grid.Column="1" Background="Transparent"
+                                                    Tapped="Chevron_Tapped"
+                                                    Visibility="{x:Bind ChevronVisibility}">
+                                                <FontIcon Glyph="&#xE76C;" FontSize="10" Margin="0,0,4,0"
+                                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                          RenderTransformOrigin="0.5,0.5">
+                                                    <FontIcon.RenderTransform>
+                                                        <RotateTransform Angle="{x:Bind ChevronAngle, Mode=OneWay}"/>
+                                                    </FontIcon.RenderTransform>
+                                                </FontIcon>
+                                            </Border>
+                                            <!-- 图标：底层常规色 + 叠一层强调色副本（**打开的文件**才可见）。
+                                                 两层都用 {ThemeResource}，跟随元素主题；打开＝强调色盖住常规色。 -->
+                                            <Grid Grid.Column="2" Margin="2,0,8,0">
+                                                <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="15"
+                                                          Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                                <FontIcon Glyph="{x:Bind IconGlyph}" FontSize="15"
+                                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                          Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"/>
+                                            </Grid>
+                                            <!-- 名称：同款叠层。**打开的文件**＝强调色文字（不加粗、不变大）；选中不染字（靠淡蓝底）。 -->
+                                            <Grid Grid.Column="3">
+                                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" FontSize="14"
+                                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                           VerticalAlignment="Center"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTipService.ToolTip="{x:Bind Name, Mode=OneWay}"/>
+                                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" FontSize="14"
+                                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                           VerticalAlignment="Center"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"/>
+                                            </Grid>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                          </ItemsRepeater>
+                        </ScrollViewer>
+
+                        <!-- Outline of the currently open file's headings. -->
+                        <ListView x:Name="OutlineList" Grid.Row="1"
+                                  Visibility="Collapsed"
+                                  SelectionMode="Single"
+                                  IsItemClickEnabled="True"
+                                  ItemClick="OutlineList_ItemClick"
+                                  RightTapped="OutlineList_RightTapped">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:OutlineItem">
+                                    <TextBlock Text="{x:Bind Text}"
+                                               FontSize="{x:Bind FontSize}"
+                                               FontWeight="{x:Bind FontWeight}"
+                                               Margin="{x:Bind Indent}"
+                                               TextWrapping="NoWrap"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTipService.ToolTip="{x:Bind Text}"/>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <TextBlock x:Name="OutlineEmptyState" Grid.Row="1"
+                                   Visibility="Collapsed"
+                                   Text="当前文件没有标题"
+                                   FontSize="12"
+                                   Margin="12,8"
+                                   RightTapped="OutlineList_RightTapped"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                      </Grid>
+                  </Grid>
+                  </Border>
+
+                  <!-- drag handle on the panel's right edge → resizes TreePanel.Width (OnPaneResize*).
+                       HorizontalAlignment=Right glues it to the edge; hides with the panel. -->
+                  <controls:ResizeGrip x:Name="PaneResizeGrip" Width="6"
+                          HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                          Background="Transparent"
+                          PointerPressed="OnPaneResizePressed"
+                          PointerMoved="OnPaneResizeMoved"
+                          PointerReleased="OnPaneResizeReleased"/>
+                </Grid>
+              <Grid x:Name="FilesView" Grid.Column="1">
+                <!-- 编辑区面板：TabView + WebView2 + 状态栏。没有打开笔记时整体隐藏
+                     （见 UpdateEditorChrome），露出干净的 Mica 背景，只留下面那行居中提示。
+                     Right margin gives the tabs/editor breathing room against the window edge. -->
+                <Grid x:Name="EditorPanel" RowDefinitions="Auto,*,Auto" Margin="0,0,8,0">
+                    <TabView x:Name="EditorTabs" Grid.Row="0"
+                             IsAddTabButtonVisible="True"
+                             AddTabButtonClick="EditorTabs_AddTabButtonClick"
+                             TabCloseRequested="EditorTabs_TabCloseRequested"
+                             SelectionChanged="EditorTabs_SelectionChanged"
+                             TabItemsChanged="EditorTabs_TabItemsChanged"
+                             CanDragTabs="True"
+                             CanReorderTabs="True"/>
+
+                    <controls:EditorHostView x:Name="EditorHost" Grid.Row="1"/>
+
+                    <!-- Status bar: source-mode toggle (left) + word count (right).
+                         Only editor-scoped controls live here; theme is in the title bar.
+                         左边框那一小段竖线＝把这条「编辑器底部状态栏」与左侧侧栏分开（2026-06 美化，
+                         弃用了贯穿全高的两条竖线——它们顶端突兀）。 -->
+                    <!-- Margin 左 -2：把这条竖线往侧栏方向再挪 2px（想再挪改这个负值；0=贴边界）。 -->
+                    <Border Grid.Row="2"
+                            Height="26"
+                            Margin="-1,0,0,0"
+                            Background="Transparent"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="1,1,0,0">
+                        <Grid Padding="6,0,12,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <ToggleButton x:Name="SourceModeToggle"
+                                          Grid.Column="0"
+                                          Height="22"
+                                          Padding="6,0"
+                                          VerticalAlignment="Center"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Click="OnSourceModeToggle"
+                                          ToolTipService.ToolTip="源代码模式 (Ctrl+Shift+U)">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE943;" FontSize="13"/>
+                                    <TextBlock Text="源代码" FontSize="12" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        Spacing="14"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center">
+                                <TextBlock x:Name="StatusWordCount"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text=""/>
+                                <!-- 缩放百分比：点击弹出预设/重置，可直接设定缩放 -->
+                                <Button x:Name="ZoomButton"
+                                        Height="22"
+                                        Padding="8,0"
+                                        VerticalAlignment="Center"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        FontSize="12"
+                                        Content="100%"
+                                        ToolTipService.ToolTip="缩放（Ctrl+滚轮 / Ctrl+Shift+加减 / Ctrl+Shift+0 重置；或点此选预设）">
+                                    <Button.Flyout>
+                                        <MenuFlyout Placement="Top">
+                                            <MenuFlyoutItem Text="50%" Tag="0.5" Click="OnZoomPreset"/>
+                                            <MenuFlyoutItem Text="75%" Tag="0.75" Click="OnZoomPreset"/>
+                                            <MenuFlyoutItem Text="100%" Tag="1.0" Click="OnZoomPreset"/>
+                                            <MenuFlyoutItem Text="125%" Tag="1.25" Click="OnZoomPreset"/>
+                                            <MenuFlyoutItem Text="150%" Tag="1.5" Click="OnZoomPreset"/>
+                                            <MenuFlyoutItem Text="200%" Tag="2.0" Click="OnZoomPreset"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- 无打开笔记时的居中淡色提示（EditorPanel 隐藏时才显示，见 UpdateEditorChrome）。 -->
+                <TextBlock x:Name="EditorEmptyState"
+                           Visibility="Collapsed"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="14"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           Text="当前没有打开的笔记，请在左侧工作区选择一篇笔记"/>
+              </Grid>
+                </Grid>
+                <!-- /EditorSurface -->
+
+                <!-- 笔记本主页（卡片墙，独立 UserControl，2026-06 从本文件拆出，见 Views/NotebookHomePage.xaml）。
+                     仍叫 NotebookHomeView，覆盖 [TreePanel+编辑器]；显隐由 Show*Internal 切换。 -->
+                <views:NotebookHomePage x:Name="NotebookHomeView" Visibility="Collapsed"/>
+
+                <!-- 笔记本详情页（独立 UserControl，见 Views/NotebookDetailPage.xaml）。仍叫 NotebookDetailView。 -->
+                <views:NotebookDetailPage x:Name="NotebookDetailView" Visibility="Collapsed"/>
+
+                <!-- 设置页（独立 UserControl，2026-06 从本文件拆出，见 Views/SettingsPage.xaml）。
+                     仍叫 SettingsView，覆盖 [TreePanel+编辑器]；显隐由 Show*Internal 切换。 -->
+                <views:SettingsPage x:Name="SettingsView" Visibility="Collapsed"/>
+
+                <!-- 笔记本维护覆盖页（图片体检/孤儿清理，见 Views/MaintenancePage.xaml）。
+                     两入口：详情页菜单（单个）/ 主页多选工具条（批量）；覆盖 [TreePanel+编辑器]。 -->
+                <views:MaintenancePage x:Name="MaintenanceView" Visibility="Collapsed"/>
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>

@@ -1,0 +1,54 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.vs/
+.vs/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/
+
+## Node / Web
+node_modules/
+web/dist/
+
+## Build outputs
+Mica/Assets/Editor/
+dist/
+*.zip
+*.pdb
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+## IDE
+*.csproj.user
+*.sln.DotSettings.user
+.idea/
+.claude/
+
+## Runtime / logs
+logs/
+*.log
+**/Mica.exe.WebView2/
+
+## Binary image assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.tif
+*.tiff
+*.ico
+
+## App identity assets kept in source
+!Mica/Assets/mica.png
+!Mica/Assets/mica.ico

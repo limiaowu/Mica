@@ -1,0 +1,132 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Mica">
+  <title>Mica</title>
+  <defs>
+    
+    <clipPath id="squircle">
+      <path d="M128 0c89.6 0 128 38.4 128 128s-38.4 128-128 128S0 217.6 0 128 38.4 0 128 0Z"></path>
+    </clipPath>
+
+    
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6FD0FF"></stop>
+      <stop offset="38%" stop-color="#7B8CFF"></stop>
+      <stop offset="72%" stop-color="#B97AFF"></stop>
+      <stop offset="100%" stop-color="#FF8FB4"></stop>
+    </linearGradient>
+
+    
+    <linearGradient id="glass" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.78"></stop>
+      <stop offset="100%" stop-color="#f1eef0" stop-opacity="0.92"></stop>
+    </linearGradient>
+
+    
+    <linearGradient id="sheen" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"></stop>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
+    </linearGradient>
+
+    
+    <linearGradient id="innerStroke" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.65"></stop>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05"></stop>
+    </linearGradient>
+
+    
+    <linearGradient id="paper" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"></stop>
+      <stop offset="100%" stop-color="#f3f0f7" stop-opacity="0.92"></stop>
+    </linearGradient>
+
+    
+    <linearGradient id="rainbow" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#FF8FB4" stop-opacity="0"></stop>
+      <stop offset="15%" stop-color="#FF8FB4" stop-opacity="0.9"></stop>
+      <stop offset="35%" stop-color="#FFD27A" stop-opacity="0.9"></stop>
+      <stop offset="55%" stop-color="#7BE5A0" stop-opacity="0.9"></stop>
+      <stop offset="75%" stop-color="#6FD0FF" stop-opacity="0.9"></stop>
+      <stop offset="92%" stop-color="#B97AFF" stop-opacity="0.9"></stop>
+      <stop offset="100%" stop-color="#B97AFF" stop-opacity="0"></stop>
+    </linearGradient>
+
+    
+    <linearGradient id="micaInk" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#5a4a7a"></stop>
+      <stop offset="45%" stop-color="#372c54"></stop>
+      <stop offset="100%" stop-color="#221a38"></stop>
+    </linearGradient>
+
+    
+    <filter id="raised" x="-15%" y="-15%" width="130%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.1"></feGaussianBlur>
+      <feOffset dy="1.8" result="shadowBlur"></feOffset>
+      <feFlood flood-color="#1a1226" flood-opacity="0.42"></feFlood>
+      <feComposite in2="shadowBlur" operator="in" result="shadowColor"></feComposite>
+      <feMerge>
+        <feMergeNode in="shadowColor"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+
+    
+    <filter id="grain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="2" seed="7" stitchTiles="stitch"></feTurbulence>
+      <feColorMatrix values="0 0 0 0 1   0 0 0 0 1   0 0 0 0 1   0 0 0 0.18 0"></feColorMatrix>
+      <feComposite in2="SourceGraphic" operator="in"></feComposite>
+    </filter>
+
+    
+    <pattern id="cleavage" x="0" y="0" width="6" height="256" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1" height="256" fill="#ffffff" fill-opacity="0.04"></rect>
+    </pattern>
+
+    
+    <clipPath id="pageClip">
+      <rect x="62" y="48" width="132" height="160" rx="10"></rect>
+    </clipPath>
+  </defs>
+
+  
+  <g clip-path="url(#squircle)">
+    
+    <rect width="256" height="256" fill="url(#accent)"></rect>
+    
+    <rect width="256" height="256" fill="url(#glass)"></rect>
+    
+    <rect width="256" height="256" fill="url(#cleavage)"></rect>
+    
+    <rect width="256" height="256" fill="url(#sheen)" opacity="0.85"></rect>
+
+    
+    <rect x="62" y="48" width="132" height="160" rx="10" fill="url(#paper)" stroke="rgba(0,0,0,0.10)" stroke-width="1.2"></rect>
+
+    
+    <g clip-path="url(#pageClip)">
+      <rect x="40" y="92" width="180" height="14" fill="url(#rainbow)" style="mix-blend-mode:multiply" opacity="0.85"></rect>
+      <rect x="40" y="92" width="180" height="14" fill="url(#rainbow)" style="mix-blend-mode:screen" opacity="0.5"></rect>
+    </g>
+
+    
+    <g filter="url(#raised)">
+      <text x="128" y="166" text-anchor="middle" font-family="&#39;Segoe UI Variable Display&#39;,&#39;Segoe UI Variable&#39;,&#39;Segoe UI&#39;,-apple-system,&#39;SF Pro Display&#39;,&#39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif" font-weight="700" font-size="52" letter-spacing="-1.2" fill="url(#micaInk)">Mica</text>
+    </g>
+    
+    <text x="128" y="165.2" text-anchor="middle" font-family="&#39;Segoe UI Variable Display&#39;,&#39;Segoe UI Variable&#39;,&#39;Segoe UI&#39;,-apple-system,&#39;SF Pro Display&#39;,&#39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif" font-weight="700" font-size="52" letter-spacing="-1.2" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="0.7">Mica</text>
+
+    
+    <g stroke="rgba(60,40,80,0.28)" stroke-width="2.6" stroke-linecap="round">
+      <line x1="80" y1="186" x2="176" y2="186"></line>
+      <line x1="80" y1="198" x2="146" y2="198"></line>
+    </g>
+
+    
+    <rect width="256" height="256" filter="url(#grain)" fill="#ffffff"></rect>
+  </g>
+
+  
+  <path d="M128 0c89.6 0 128 38.4 128 128s-38.4 128-128 128S0 217.6 0 128 38.4 0 128 0Z" fill="none" stroke="url(#innerStroke)" stroke-width="1.5"></path>
+  
+  <path d="M128 0c89.6 0 128 38.4 128 128s-38.4 128-128 128S0 217.6 0 128 38.4 0 128 0Z" fill="none" stroke="rgba(0,0,0,0.10)" stroke-width="1"></path>
+</svg>

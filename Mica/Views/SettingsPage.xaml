@@ -1,0 +1,457 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 独立设置页（2026-06 从 MainWindow 拆出）。即时保存：每个控件改动直接写 SettingsService。
+     跨页副作用（主题/标签关闭按钮/编辑器配置/选目录）通过事件+回调交回 MainWindow 处理。 -->
+<UserControl
+    x:Class="Mica.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!-- 设置项卡片统一样式 -->
+        <Style x:Key="SettingsCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,12"/>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer Padding="36,28,36,28" HorizontalScrollMode="Disabled">
+        <StackPanel Spacing="10" MaxWidth="760" HorizontalAlignment="Center">
+
+            <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+            <!-- 外观 -->
+            <TextBlock Text="外观" FontSize="18" FontWeight="SemiBold" Margin="0,8,0,2"/>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="主题" FontSize="14"/>
+                        <TextBlock Text="跟随系统、浅色或深色" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsThemeCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center"
+                              SelectionChanged="SettingsTheme_SelectionChanged">
+                        <ComboBoxItem Content="跟随系统"/>
+                        <ComboBoxItem Content="浅色"/>
+                        <ComboBoxItem Content="深色"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <!-- 编辑器 -->
+            <TextBlock Text="编辑器" FontSize="18" FontWeight="SemiBold" Margin="0,16,0,2"/>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="编辑器字体" FontSize="14"/>
+                        <TextBlock Text="正文使用的字体" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsFontCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center"
+                              SelectionChanged="SettingsFont_SelectionChanged">
+                        <ComboBoxItem Content="系统默认"/>
+                        <ComboBoxItem Content="微软雅黑"/>
+                        <ComboBoxItem Content="宋体"/>
+                        <ComboBoxItem Content="等宽"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="字号" FontSize="14"/>
+                        <TextBlock Text="正文字号（px）" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <NumberBox x:Name="SettingsFontSizeBox" Grid.Column="1" MinWidth="140"
+                               VerticalAlignment="Center"
+                               Minimum="12" Maximum="28" SmallChange="1"
+                               ValidationMode="InvalidInputOverwritten"
+                               SpinButtonPlacementMode="Compact"
+                               ValueChanged="SettingsFontSize_ValueChanged"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="行宽" FontSize="14"/>
+                        <TextBlock Text="书写区域的最大宽度" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsLineWidthCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center"
+                              SelectionChanged="SettingsLineWidth_SelectionChanged">
+                        <ComboBoxItem Content="窄"/>
+                        <ComboBoxItem Content="中"/>
+                        <ComboBoxItem Content="宽"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="代码块行号" FontSize="14"/>
+                        <TextBlock Text="在代码块左侧显示行号" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch x:Name="SettingsLineNumbersToggle" Grid.Column="1"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right"
+                                  MinWidth="0" OnContent="" OffContent=""
+                                  Toggled="SettingsLineNumbers_Toggled"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="段落首行缩进" FontSize="14"/>
+                        <TextBlock Text="正文段落首行缩进 2 字符" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch x:Name="SettingsFirstLineIndentToggle" Grid.Column="1"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right"
+                                  MinWidth="0" OnContent="" OffContent=""
+                                  Toggled="SettingsFirstLineIndent_Toggled"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="图片存储位置" FontSize="14"/>
+                        <!-- 粘贴/拖入图片落盘到哪。.mica 统一管理：藏进笔记本 .mica/assets，目录树不污染（默认）。
+                             与笔记同级 / assets：图片和 .md 放一起，便于随笔记一起复制分享。
+                             内嵌：转 base64 直接写进 .md，单文件可移植但体积大。不复制：仅引用原图绝对路径（拖入用，粘贴的剪贴板图无原路径会退回 .mica）。 -->
+                        <TextBlock Text="粘贴或拖入图片时存放的位置；内嵌会把图片转为 base64 写进文档" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsImageStorageCombo" Grid.Column="1" MinWidth="200"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              SelectionChanged="SettingsImageStorage_SelectionChanged">
+                        <ComboBoxItem Content="不复制（使用原图路径）"/>
+                        <ComboBoxItem Content="内嵌到文档（base64）"/>
+                        <ComboBoxItem Content="与笔记同级目录"/>
+                        <ComboBoxItem Content="与笔记同级 assets 文件夹（共享）"/>
+                        <ComboBoxItem Content=".mica 统一管理（默认）"/>
+                        <ComboBoxItem Content="每个笔记独立 .assets 文件夹"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="删除图片二次确认" FontSize="14"/>
+                        <TextBlock Text="删除图片需按两次：图片前按 Delete、图片后按退格、或选中图片后按删除键，第一次先标红框提醒，再按一次才删除" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch x:Name="SettingsImageDeleteConfirmToggle" Grid.Column="1"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right"
+                                  MinWidth="0" OnContent="" OffContent=""
+                                  Toggled="SettingsImageDeleteConfirm_Toggled"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="Ctrl+滚轮缩放" FontSize="14"/>
+                        <TextBlock Text="按住 Ctrl 滚动鼠标滚轮缩放编辑器；也可用 Ctrl+Shift+加减、Ctrl+Shift+0 重置，或点状态栏百分比" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch x:Name="SettingsZoomWheelToggle" Grid.Column="1"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right"
+                                  MinWidth="0" OnContent="" OffContent=""
+                                  Toggled="SettingsZoomWheel_Toggled"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="表格右键菜单" FontSize="14"/>
+                        <TextBlock Text="分组：插入/移动/删除收进子菜单，菜单更短；平铺：所有操作展开为一级项" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsTableMenuStyleCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              SelectionChanged="SettingsTableMenuStyle_SelectionChanged">
+                        <ComboBoxItem Content="分组"/>
+                        <ComboBoxItem Content="平铺"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="标签页关闭按钮" FontSize="14"/>
+                        <TextBlock Text="悬停时显示：当前标签常显、其余标签悬停才显；始终隐藏后仍可用 Ctrl+W 关闭" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsTabCloseCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              SelectionChanged="SettingsTabClose_SelectionChanged">
+                        <ComboBoxItem Content="悬停时显示"/>
+                        <ComboBoxItem Content="始终显示"/>
+                        <ComboBoxItem Content="始终隐藏"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <!-- 文件 -->
+            <TextBlock Text="文件" FontSize="18" FontWeight="SemiBold" Margin="0,16,0,2"/>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="打开笔记" FontSize="14"/>
+                        <TextBlock Text="在目录树中用单击还是双击打开笔记" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsOpenTriggerCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              SelectionChanged="SettingsOpenTrigger_SelectionChanged">
+                        <ComboBoxItem Content="单击打开"/>
+                        <ComboBoxItem Content="双击打开"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="新建笔记后自动打开" FontSize="14"/>
+                        <TextBlock Text="新建 .md 后立刻在标签页中打开" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch x:Name="SettingsOpenAfterCreateToggle" Grid.Column="1"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right"
+                                  MinWidth="0" OnContent="" OffContent=""
+                                  Toggled="SettingsOpenAfterCreate_Toggled"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="笔记/文件夹删除方式" FontSize="14"/>
+                        <TextBlock Text="在工作区删除笔记或文件夹时的行为" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsFileDeleteCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              SelectionChanged="SettingsFileDelete_SelectionChanged">
+                        <ComboBoxItem Content="移入回收站"/>
+                        <ComboBoxItem Content="永久删除"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <!-- 笔记本 -->
+            <TextBlock Text="笔记本" FontSize="18" FontWeight="SemiBold" Margin="0,16,0,2"/>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="新建时创建子文件夹" FontSize="14"/>
+                        <TextBlock Text="开：在所选目录下新建同名文件夹；关：直接使用所选目录" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch x:Name="SettingsSubfolderToggle" Grid.Column="1"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right"
+                                  MinWidth="0" OnContent="" OffContent=""
+                                  Toggled="SettingsSubfolder_Toggled"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <StackPanel Spacing="8">
+                    <StackPanel>
+                        <TextBlock Text="默认存放位置" FontSize="14"/>
+                        <TextBlock Text="新建笔记本时预填的父目录（留空则每次手动选择）" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="SettingsDefaultParentBox" Grid.Column="0"
+                                 IsReadOnly="True" PlaceholderText="未设置"/>
+                        <Button Grid.Column="1" Content="浏览" Click="SettingsBrowseParent_Click"/>
+                        <Button Grid.Column="2" Content="清除" Click="SettingsClearParent_Click"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="新建笔记本后进入" FontSize="14"/>
+                        <TextBlock Text="创建笔记本后是查看详情页，还是直接作为工作区开始编辑" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsNewNotebookEntryCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              SelectionChanged="SettingsNewNotebookEntry_SelectionChanged">
+                        <ComboBoxItem Content="详情页"/>
+                        <ComboBoxItem Content="工作区"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="笔记本删除方式" FontSize="14"/>
+                        <TextBlock Text="仅移除只从列表移除、保留磁盘文件；其余会删除文件夹" FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsNotebookDeleteCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              SelectionChanged="SettingsNotebookDelete_SelectionChanged">
+                        <ComboBoxItem Content="仅移除"/>
+                        <ComboBoxItem Content="移入回收站"/>
+                        <ComboBoxItem Content="永久删除"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <!-- 启动与自动保存 -->
+            <TextBlock Text="启动与自动保存" FontSize="18" FontWeight="SemiBold" Margin="0,16,0,2"/>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="启动时恢复上次笔记本" FontSize="14"/>
+                        <TextBlock Text="关闭则每次启动回到笔记本卡片页" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch x:Name="SettingsRestoreToggle" Grid.Column="1"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right"
+                                  MinWidth="0" OnContent="" OffContent=""
+                                  Toggled="SettingsRestore_Toggled"/>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="自动保存延迟" FontSize="14"/>
+                        <TextBlock Text="停止输入多久后写入磁盘" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox x:Name="SettingsAutoSaveCombo" Grid.Column="1" MinWidth="140"
+                              VerticalAlignment="Center"
+                              SelectionChanged="SettingsAutoSave_SelectionChanged">
+                        <ComboBoxItem Content="300 毫秒"/>
+                        <ComboBoxItem Content="500 毫秒"/>
+                        <ComboBoxItem Content="1 秒"/>
+                        <ComboBoxItem Content="2 秒"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

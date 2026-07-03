@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Mica.Views.NotebookReportView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Mica.Views"
+    mc:Ignorable="d"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+
+    <!-- 单个笔记本的体检报告（只读 + 清理/定位）。被 MaintenancePage 在主从右侧复用。
+         · 单滚动条：整页一个 ScrollViewer，「笔记问题」「未引用图片」用 Expander 折叠，不再有内层滚动条。
+         · 内容居中 + MaxWidth：解决宽窗口右侧大片空白。
+         · 未引用图片**不再内联缩略图**（上百张同时解码会卡）→ 鼠标悬停时才解码一张做悬浮预览卡。 -->
+    <Grid>
+        <ScrollViewer Padding="28,20,28,28" HorizontalScrollMode="Disabled">
+            <StackPanel Spacing="20" MaxWidth="1040" HorizontalAlignment="Center">
+
+                <!-- 标题（笔记本名 + 路径） -->
+                <StackPanel Spacing="2">
+                    <TextBlock x:Name="TitleText" FontSize="22" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="PathText" FontSize="12"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+
+                <!-- 概览统计卡：自动换行的等宽卡片 -->
+                <ItemsRepeater x:Name="StatCards">
+                    <ItemsRepeater.Layout>
+                        <UniformGridLayout MinItemWidth="150" MinItemHeight="64"
+                                           MinRowSpacing="10" MinColumnSpacing="10"
+                                           ItemsStretch="Fill"/>
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="local:StatCard">
+                            <Border CornerRadius="8" Padding="14,10"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{x:Bind Label}" FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <TextBlock Text="{x:Bind Value}" FontSize="22" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{x:Bind Sub}" FontSize="11"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               Visibility="{x:Bind HasSub}"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+
+                <!-- 存储分布：每种存储模式一行，条长按引用占比 -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="图片存储分布" FontSize="15" FontWeight="SemiBold"/>
+                    <Border CornerRadius="8" Padding="16,14"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <StackPanel Spacing="2">
+                            <ItemsControl x:Name="CategoryList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:CategoryRow">
+                                        <Grid ColumnSpacing="12" Padding="0,6" VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="96"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{x:Bind Label}" FontSize="13"
+                                                       VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Column="1" Value="{x:Bind Percent}" Maximum="100"
+                                                         VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{x:Bind CountText}" FontSize="13"
+                                                       MinWidth="44" TextAlignment="Right"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{x:Bind SizeText}" FontSize="12"
+                                                       MinWidth="72" TextAlignment="Right"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock x:Name="NoImagesHint" Text="这个笔记本里还没有图片。" FontSize="13"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- 一键迁移：把本笔记本所有图统一搬到「当前图片存储设置」对应的位置 + 改写 src。 -->
+                    <Grid x:Name="MigrateRow" ColumnSpacing="12" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="MigrateHint" Grid.Column="0" FontSize="12" TextWrapping="Wrap"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        <Button x:Name="MigrateButton" Grid.Column="1" Click="OnMigrate"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Markdown 问题：断链引用 + 空代码块/公式块/表格/图册。可折叠。每行「定位」（打开笔记滚到原处）/「清理」（删整段原文）。 -->
+                <Expander x:Name="IssueExpander" HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch" IsExpanded="True">
+                    <Expander.Header>
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="Markdown 问题" FontSize="15" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="IssueSummary" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button x:Name="CleanIssuesButton" Grid.Column="1" Content="清理" Margin="0,0,12,0"
+                                    Click="OnCleanAllIssues"/>
+                        </Grid>
+                    </Expander.Header>
+                    <ItemsControl x:Name="IssueList" Margin="-12,4,-12,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:IssueRow">
+                                <Grid ColumnSpacing="10" Padding="2,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" CornerRadius="4" Padding="7,2"
+                                            VerticalAlignment="Center"
+                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                        <TextBlock Text="{x:Bind KindLabel}" FontSize="11"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Note}" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{x:Bind Detail}" FontSize="12"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Visibility="{x:Bind HasDetail}"
+                                                   ToolTipService.ToolTip="{x:Bind Detail}"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="定位" FontSize="12"
+                                            Padding="10,4" Click="OnLocateIssue"/>
+                                    <Button Grid.Column="3" Content="清理" FontSize="12"
+                                            Padding="10,4" Click="OnCleanIssue"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+
+                <!-- 未引用图片：.mica/assets 下没有任何笔记引用的文件，可一键清理（移到回收站）。可折叠（很多时默认收起）。
+                     行内不放缩略图（上百张同时解码会卡）→ 点行内「预览」按钮才解码一张弹 Flyout（见 cs 的 OnPreviewOrphan）。 -->
+                <Expander x:Name="OrphanExpander" HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch" IsExpanded="True">
+                    <Expander.Header>
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="未引用图片" FontSize="15" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="OrphanSummary" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button x:Name="CleanButton" Grid.Column="1" Content="清理" Margin="0,0,12,0"
+                                    Click="OnCleanOrphans"/>
+                        </Grid>
+                    </Expander.Header>
+                    <ItemsControl x:Name="OrphanList" Margin="-12,4,-12,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:OrphanRow">
+                                <Grid ColumnSpacing="8" Padding="2,5" Background="Transparent">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{x:Bind RelPath}" FontSize="13"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTipService.ToolTip="{x:Bind RelPath}"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind SizeText}" FontSize="12"
+                                               VerticalAlignment="Center" MinWidth="64" TextAlignment="Right"
+                                               Margin="0,0,4,0"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                    <Button Grid.Column="2" Width="32" Height="30" Padding="0"
+                                            Background="Transparent" BorderThickness="0"
+                                            Click="OnPreviewOrphan"
+                                            ToolTipService.ToolTip="预览">
+                                        <FontIcon Glyph="&#xE7B3;" FontSize="14"/>
+                                    </Button>
+                                    <Button Grid.Column="3" Width="32" Height="30" Padding="0"
+                                            Background="Transparent" BorderThickness="0"
+                                            Click="OnRevealOrphan"
+                                            ToolTipService.ToolTip="在资源管理器中显示">
+                                        <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
