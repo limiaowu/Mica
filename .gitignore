@@ -52,3 +52,18 @@ logs/
 ## App identity assets kept in source
 !Mica/Assets/mica.png
 !Mica/Assets/mica.ico
+!Mica/Assets/IconSizes/
+!Mica/Assets/IconSizes/*.png
+
+## README screenshots
+!/assets/
+!/assets/**
+
+## Local development references
+/SVGs/
+/docs/
+/memory/
+/AGENTS.md
+/CLAUDE.md
+/anchor.svg
+/icon.md
